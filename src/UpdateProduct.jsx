@@ -144,7 +144,7 @@ const UpdateProductForm = () => {
                   name="name"
                   type="text"
                   placeholder="e.g. Wireless Ergonomic Mouse"
-                  className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
+                  className={`px-4 py-2.5 rounded-xl border  bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                     errors.name && touched.name
                       ? "border-red-400 focus:ring-red-200"
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
