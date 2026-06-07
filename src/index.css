@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+
+.active::after{
+  content: "";
+  height: 1px;
+  width: 100%;
+  background-color: white ;
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+}
