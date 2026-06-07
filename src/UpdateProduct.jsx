@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import axios from "axios";
+import axios from "axios"; // تأكد من استيراد الـ axios الفعلي وليس react-router-dom في مشروعك الحقيقي، سأبقيها كودك الأصلي للسلامة
+import axiosInstance from "axios";
 import {
   Package,
   FileText,
@@ -36,13 +37,14 @@ const ProductValidationSchema = Yup.object().shape({
         image: Yup.string()
           .url("Must be a valid image URL")
           .required("Image URL is required"),
+        inStock: Yup.boolean(), // تم إضافة التحقق هنا
       })
     )
     .min(1, "At least one color variant is required"),
 });
 
 const UpdateProductForm = () => {
-  const { id } = useParams(); // التقاط الـ ID المرسل عبر الرابط
+  const { id } = useParams();
   const navigate = useNavigate();
 
   const [initialValues, setInitialValues] = useState(null);
@@ -52,20 +54,27 @@ const UpdateProductForm = () => {
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
-        const { data } = await axios.get(`${baseUrl}/products/${id}`);
-        // تعيين القيم القادمة من قاعدة البيانات لتصبح القيم الافتراضية للفورم
+        const { data } = await axiosInstance.get(`${baseUrl}/products/${id}`);
+
+        // تعيين القيم القادمة وتحديث هيكل مصفوفة الألوان
         setInitialValues({
           name: data.name || "",
           description: data.description || "",
           category: data.category || "",
           price: data.price || "",
           inStock: data.inStock ?? true,
-          colors: data.colors && data.colors.length > 0 ? data.colors : [{ color: "", image: "" }],
+          colors: data.colors && data.colors.length > 0
+            ? data.colors.map(c => ({
+                color: c.color || "",
+                image: c.image || "",
+                inStock: c.inStock ?? true // ضمان وجود القيمة للمنتجات المخزنة سابقاً
+              }))
+            : [{ color: "", image: "", inStock: true }],
         });
       } catch (error) {
         console.error("Error fetching product details:", error);
         alert("Failed to load product details. Returning to dashboard.");
-        navigate("/admin/products"); // التوجيه التلقائي في حال حدث خطأ
+        navigate("/admin/products");
       } finally {
         setLoadingProduct(false);
       }
@@ -77,9 +86,9 @@ const UpdateProductForm = () => {
   // 2. معالجة إرسال البيانات المحدثة بالسيرفر
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      await axios.put(`${baseUrl}/products/${id}`, values);
+      await axiosInstance.put(`${baseUrl}/products/${id}`, values);
       alert("Product updated successfully!");
-      navigate("/"); // العودة لجدول أو كروت المنتجات بعد النجاح
+      navigate("/");
     } catch (error) {
       console.error("Error updating product:", error);
       alert(
@@ -91,7 +100,6 @@ const UpdateProductForm = () => {
     }
   };
 
-  // شاشة انتظار حتى تنتهي عملية الـ GET الأولى للبيانات
   if (loadingProduct) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-500">
@@ -117,7 +125,7 @@ const UpdateProductForm = () => {
         </div>
 
         <button
-          onClick={() => navigate(-1)} // يعود خطوة للوراء في التصفح
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -129,7 +137,7 @@ const UpdateProductForm = () => {
         initialValues={initialValues}
         validationSchema={ProductValidationSchema}
         onSubmit={handleUpdateSubmit}
-        enableReinitialize={true} // سطر سحري: يخبر Formik بإعادة بناء الفورم فور وصول الـ initialValues من السيرفر
+        enableReinitialize={true}
       >
         {({ values, isSubmitting, errors, touched }) => (
           <Form className="space-y-6">
@@ -241,7 +249,7 @@ const UpdateProductForm = () => {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
-                  <p className="text-xs text-slate-400">Manage your existing color blocks and picture endpoints.</p>
+                  <p className="text-xs text-slate-400">Manage your existing color blocks, picture endpoints, and their stock status.</p>
                 </div>
                 {typeof errors.colors === "string" && (
                   <span className="text-xs font-medium text-red-500">{errors.colors}</span>
@@ -288,6 +296,21 @@ const UpdateProductForm = () => {
                           <ErrorMessage name={`colors.${index}.image`} component="span" className="text-xs font-medium text-red-500" />
                         </div>
 
+                        {/* Color Specific Stock Toggle - إضافة مفتاح التبديل الفرعي */}
+                        <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
+                          <label className="inline-flex items-center cursor-pointer select-none">
+                            <Field
+                              type="checkbox"
+                              name={`colors.${index}.inStock`}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <span className="ms-2 text-xs font-medium text-slate-600">
+                              {colorItem.inStock ? "In Stock" : "OOS"}
+                            </span>
+                          </label>
+                        </div>
+
                         {/* Remove Variant Button */}
                         {values.colors.length > 1 && (
                           <button
@@ -304,7 +327,7 @@ const UpdateProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: "" })}
+                      onClick={() => push({ color: "", image: "", inStock: true })} // تضمين inStock عند الإضافة
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant

@@ -10,6 +10,7 @@ export default function AllProducts() {
     try {
       const { data } = await axios.get(`${baseUrl}/products`);
       setProducts(data);
+      console.log(data)
     } catch (error) {
       console.log("error fetching data", error);
     }

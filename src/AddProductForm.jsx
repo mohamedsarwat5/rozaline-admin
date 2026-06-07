@@ -15,6 +15,8 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 // Validation Schema matching your Mongoose requirements
@@ -33,27 +35,30 @@ const ProductValidationSchema = Yup.object().shape({
         image: Yup.string()
           .url("Must be a valid image URL")
           .required("Image URL is required"),
+        inStock: Yup.boolean(), // تم تحديث المخطط هنا
       }),
     )
     .min(1, "At least one color variant is required"),
 });
 
 const AddProductForm = () => {
+  const navigate = useNavigate();
+
   const initialValues = {
     name: "",
     description: "",
     category: "",
     price: "",
     inStock: true,
-    colors: [{ color: "", image: "" }],
+    colors: [{ color: "", image: "", inStock: true }], // تم تحديث القيمة الابتدائية هنا
   };
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      // Direct POST request using Axios matching your Mongoose Schema structure
       const response = await axios.post(`${baseUrl}/products`, values);
       alert("Product added successfully!");
       resetForm();
+      navigate("/");
     } catch (error) {
       console.error("Error submitting form:", error);
       alert(
@@ -74,8 +79,7 @@ const AddProductForm = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Add New Product</h2>
           <p className="text-sm text-slate-500">
-            Fill out the details below to add a product variant to your
-            website.
+            Fill out the details below to add a product variant to your website.
           </p>
         </div>
       </div>
@@ -222,7 +226,7 @@ const AddProductForm = () => {
                     Color Variants
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Add at least one color variant and an associated image URL.
+                    Add at least one color variant, an associated image URL, and its stock status.
                   </p>
                 </div>
                 {typeof errors.colors === "string" && (
@@ -249,7 +253,7 @@ const AddProductForm = () => {
                             <Field
                               name={`colors.${index}.color`}
                               type="text"
-                              placeholder="Color name (e.g., Matte Black, #000000)"
+                              placeholder="Color name (e.g., Matte Black)"
                               className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
                             />
                           </div>
@@ -280,6 +284,21 @@ const AddProductForm = () => {
                           />
                         </div>
 
+                        {/* Color Specific Stock Toggle - التعديل الجديد هنا */}
+                        <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
+                          <label className="inline-flex items-center cursor-pointer select-none">
+                            <Field
+                              type="checkbox"
+                              name={`colors.${index}.inStock`}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <span className="ms-2 text-xs font-medium text-slate-600">
+                              {colorItem.inStock ? "In Stock" : "OOS"}
+                            </span>
+                          </label>
+                        </div>
+
                         {/* Remove Variant Button */}
                         {values.colors.length > 1 && (
                           <button
@@ -296,7 +315,7 @@ const AddProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: "" })}
+                      onClick={() => push({ color: "", image: "", inStock: true })} // تحديث الـ push هنا
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-indigo-50/30"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -315,8 +334,7 @@ const AddProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Saving
-                    Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Saving Product...
                   </>
                 ) : (
                   "Publish Product"
