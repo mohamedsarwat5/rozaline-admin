@@ -33,7 +33,7 @@ export default function ProductCard({ product, onDelete }) {
           </span>
         </div>
 
-        <h3 className="text-xl font-bold text-gray-800 mb-2 truncate">{product.name}</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-2 truncate capitalize">{product.name}</h3>
 
         <p className="text-gray-600 text-sm line-clamp-2 mb-4">
           {product.description}
