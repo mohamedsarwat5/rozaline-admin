@@ -38,12 +38,29 @@ const ProductValidationSchema = Yup.object().shape({
           .url("Must be a valid image URL")
           .required("Image URL is required"),
         inStock: Yup.boolean(), // تم إضافة التحقق هنا
-      })
+      }),
     )
     .min(1, "At least one color variant is required"),
+  availableWeights: Yup.array()
+    .of(Yup.string()),
+
+
+  availableLengths: Yup.array()
+    .of(Yup.string())
+
 });
 
 const UpdateProductForm = () => {
+  const weightOptions = [
+    "one size",
+    "55-85",
+    "85-120",
+    "55-80 (Bust: 105)",
+    "80-120 (Bust: 112)",
+  ];
+
+  const lengthOptions = ["100", "105", "110", "150"];
+
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -63,13 +80,17 @@ const UpdateProductForm = () => {
           category: data.category || "",
           price: data.price || "",
           inStock: data.inStock ?? true,
-          colors: data.colors && data.colors.length > 0
-            ? data.colors.map(c => ({
-                color: c.color || "",
-                image: c.image || "",
-                inStock: c.inStock ?? true // ضمان وجود القيمة للمنتجات المخزنة سابقاً
-              }))
-            : [{ color: "", image: "", inStock: true }],
+          availableWeights: data.availableWeights || [],
+          availableLengths: data.availableLengths || [],
+
+          colors:
+            data.colors && data.colors.length > 0
+              ? data.colors.map((c) => ({
+                  color: c.color || "",
+                  image: c.image || "",
+                  inStock: c.inStock ?? true, // ضمان وجود القيمة للمنتجات المخزنة سابقاً
+                }))
+              : [{ color: "", image: "", inStock: true }],
         });
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -93,7 +114,7 @@ const UpdateProductForm = () => {
       console.error("Error updating product:", error);
       alert(
         error.response?.data?.message ||
-          "Something went wrong while updating. Please try again."
+          "Something went wrong while updating. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -111,7 +132,6 @@ const UpdateProductForm = () => {
 
   return (
     <div className="max-w-4xl mx-auto my-10 p-8 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
-
       {/* رأس الصفحة مع زر العودة للرئيسية */}
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
         <div className="flex items-center gap-3">
@@ -119,8 +139,12 @@ const UpdateProductForm = () => {
             <Package className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Update Product</h2>
-            <p className="text-sm text-slate-400">Modify the fields below to patch your live product metadata.</p>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
+              Update Product
+            </h2>
+            <p className="text-sm text-slate-400">
+              Modify the fields below to patch your live product metadata.
+            </p>
           </div>
         </div>
 
@@ -158,7 +182,11 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage name="name" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="name"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
               </div>
 
               {/* Category */}
@@ -175,12 +203,100 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 >
-                  <option value="" disabled hidden>Select a category</option>
+                  <option value="" disabled hidden>
+                    Select a category
+                  </option>
                   <option value="Sets">Sets</option>
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
                 </Field>
-                <ErrorMessage name="category" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="category"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
+              </div>
+
+              {/* Available Weights */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Weights
+                </label>
+
+                <FieldArray name="availableWeights">
+                  {({ push, remove }) => (
+                    <div className="grid grid-cols-1 gap-2">
+                      {weightOptions.map((weight) => (
+                        <label
+                          key={weight}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(values.availableWeights || []).includes(
+                              weight,
+                            )}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(weight);
+                              } else {
+                                remove(values.availableWeights.indexOf(weight));
+                              }
+                            }}
+                          />
+                          {weight}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </FieldArray>
+
+                <ErrorMessage
+                  name="availableWeights"
+                  component="span"
+                  className="text-xs text-red-500"
+                />
+              </div>
+
+              {/* Available Lengths */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Lengths
+                </label>
+
+                <FieldArray name="availableLengths">
+                  {({ push, remove }) => (
+                    <div className="grid grid-cols-2 gap-2">
+                      {lengthOptions.map((length) => (
+                        <label
+                          key={length}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(values.availableLengths || []).includes(
+                              length,
+                            )}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(length);
+                              } else {
+                                remove(values.availableLengths.indexOf(length));
+                              }
+                            }}
+                          />
+                          {length}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </FieldArray>
+
+                <ErrorMessage
+                  name="availableLengths"
+                  component="span"
+                  className="text-xs text-red-500"
+                />
               </div>
 
               {/* Price */}
@@ -199,14 +315,24 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage name="price" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="price"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
               </div>
 
               {/* Stock Status Toggle */}
               <div className="flex flex-col gap-1.5 justify-center">
-                <span className="text-sm font-semibold text-slate-700 mb-2 block">Availability Status</span>
+                <span className="text-sm font-semibold text-slate-700 mb-2 block">
+                  Availability Status
+                </span>
                 <label className="inline-flex items-center cursor-pointer select-none">
-                  <Field type="checkbox" name="inStock" className="sr-only peer" />
+                  <Field
+                    type="checkbox"
+                    name="inStock"
+                    className="sr-only peer"
+                  />
                   <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   <span className="ms-3 text-sm font-medium text-slate-700 flex items-center gap-1.5">
                     {values.inStock ? (
@@ -239,7 +365,11 @@ const UpdateProductForm = () => {
                     : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                 }`}
               />
-              <ErrorMessage name="description" component="span" className="text-xs font-medium text-red-500 mt-1" />
+              <ErrorMessage
+                name="description"
+                component="span"
+                className="text-xs font-medium text-red-500 mt-1"
+              />
             </div>
 
             <hr className="my-6 border-slate-50" />
@@ -248,11 +378,18 @@ const UpdateProductForm = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
-                  <p className="text-xs text-slate-400">Manage your existing color blocks, picture endpoints, and their stock status.</p>
+                  <h3 className="text-md font-bold text-slate-800">
+                    Color Variants
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Manage your existing color blocks, picture endpoints, and
+                    their stock status.
+                  </p>
                 </div>
                 {typeof errors.colors === "string" && (
-                  <span className="text-xs font-medium text-red-500">{errors.colors}</span>
+                  <span className="text-xs font-medium text-red-500">
+                    {errors.colors}
+                  </span>
                 )}
               </div>
 
@@ -277,7 +414,11 @@ const UpdateProductForm = () => {
                               className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
                             />
                           </div>
-                          <ErrorMessage name={`colors.${index}.color`} component="span" className="text-xs font-medium text-red-500" />
+                          <ErrorMessage
+                            name={`colors.${index}.color`}
+                            component="span"
+                            className="text-xs font-medium text-red-500"
+                          />
                         </div>
 
                         {/* Variant Image URL String */}
@@ -293,7 +434,11 @@ const UpdateProductForm = () => {
                               className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
                             />
                           </div>
-                          <ErrorMessage name={`colors.${index}.image`} component="span" className="text-xs font-medium text-red-500" />
+                          <ErrorMessage
+                            name={`colors.${index}.image`}
+                            component="span"
+                            className="text-xs font-medium text-red-500"
+                          />
                         </div>
 
                         {/* Color Specific Stock Toggle - إضافة مفتاح التبديل الفرعي */}
@@ -327,7 +472,9 @@ const UpdateProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: "", inStock: true })} // تضمين inStock عند الإضافة
+                      onClick={() =>
+                        push({ color: "", image: "", inStock: true })
+                      } // تضمين inStock عند الإضافة
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -346,7 +493,8 @@ const UpdateProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Updating
+                    Product...
                   </>
                 ) : (
                   "Save Changes"

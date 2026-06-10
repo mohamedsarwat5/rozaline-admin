@@ -39,9 +39,26 @@ const ProductValidationSchema = Yup.object().shape({
       }),
     )
     .min(1, "At least one color variant is required"),
+  availableWeights: Yup.array()
+    .of(Yup.string())
+    .min(1, "Select at least one weight"),
+
+  availableLengths: Yup.array()
+    .of(Yup.string())
+    .min(1, "Select at least one length"),
 });
 
 const AddProductForm = () => {
+  const weightOptions = [
+    "one size",
+    "55-85",
+    "85-120",
+    "55-80 (Bust: 105)",
+    "80-120 (Bust: 112)",
+  ];
+
+  const lengthOptions = ["100", "105", "110", "150"];
+
   const navigate = useNavigate();
 
   const initialValues = {
@@ -50,6 +67,8 @@ const AddProductForm = () => {
     category: "",
     price: "",
     inStock: true,
+    availableWeights: [],
+    availableLengths: [],
     colors: [{ color: "", image: "", inStock: true }], // تم تحديث القيمة الابتدائية هنا
   };
 
@@ -143,6 +162,86 @@ const AddProductForm = () => {
                 />
               </div>
 
+              {/* Available Weights */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Weights
+                </label>
+
+                <FieldArray name="availableWeights">
+                  {({ push, remove }) => (
+                    <div className="grid grid-cols-1 gap-2">
+                      {weightOptions.map((weight) => (
+                        <label
+                          key={weight}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={values.availableWeights.includes(weight)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(weight);
+                              } else {
+                                remove(values.availableWeights.indexOf(weight));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          {weight}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </FieldArray>
+
+                <ErrorMessage
+                  name="availableWeights"
+                  component="span"
+                  className="text-xs text-red-500"
+                />
+              </div>
+
+              {/* Available Lengths */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Lengths
+                </label>
+
+                <FieldArray name="availableLengths">
+                  {({ push, remove }) => (
+                    <div className="grid grid-cols-2 gap-2">
+                      {lengthOptions.map((length) => (
+                        <label
+                          key={length}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={values.availableLengths.includes(length)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(length);
+                              } else {
+                                remove(values.availableLengths.indexOf(length));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          {length}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </FieldArray>
+
+                <ErrorMessage
+                  name="availableLengths"
+                  component="span"
+                  className="text-xs text-red-500"
+                />
+              </div>
+
               {/* Price */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -226,7 +325,8 @@ const AddProductForm = () => {
                     Color Variants
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Add at least one color variant, an associated image URL, and its stock status.
+                    Add at least one color variant, an associated image URL, and
+                    its stock status.
                   </p>
                 </div>
                 {typeof errors.colors === "string" && (
@@ -315,7 +415,9 @@ const AddProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: "", inStock: true })} // تحديث الـ push هنا
+                      onClick={() =>
+                        push({ color: "", image: "", inStock: true })
+                      } // تحديث الـ push هنا
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-indigo-50/30"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -334,7 +436,8 @@ const AddProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Saving Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Saving
+                    Product...
                   </>
                 ) : (
                   "Publish Product"
