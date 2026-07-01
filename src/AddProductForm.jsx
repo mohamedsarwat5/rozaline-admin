@@ -51,10 +51,11 @@ const ProductValidationSchema = Yup.object().shape({
 const AddProductForm = () => {
   const weightOptions = [
     "one size",
-    "55-85",
-    "85-120",
-    "55-80 (Bust: 105)",
-    "80-120 (Bust: 112)",
+    "50-80",
+    "80-120",
+    "Up to 80 (Bust: 105)",
+    "Up to 110 (Bust: 120)",
+    "Up to 110"
   ];
 
   const lengthOptions = ["100", "105", "110", "150"];
