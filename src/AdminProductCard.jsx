@@ -40,7 +40,7 @@ export default function ProductCard({ product, onDelete }) {
         </p>
 
         {/* Colors */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 flex-wrap">
           {product.colors?.map((item) => (
             <div
               key={item._id}

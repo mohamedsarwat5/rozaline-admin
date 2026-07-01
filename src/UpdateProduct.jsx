@@ -41,22 +41,19 @@ const ProductValidationSchema = Yup.object().shape({
       }),
     )
     .min(1, "At least one color variant is required"),
-  availableWeights: Yup.array()
-    .of(Yup.string()),
+  availableWeights: Yup.array().of(Yup.string()),
 
-
-  availableLengths: Yup.array()
-    .of(Yup.string())
-
+  availableLengths: Yup.array().of(Yup.string()),
 });
 
 const UpdateProductForm = () => {
   const weightOptions = [
-    "one size",
-    "55-85",
-    "85-120",
-    "55-80 (Bust: 105)",
-    "80-120 (Bust: 112)",
+  "one size",
+    "50-80",
+    "80-120",
+    "Up to 80 (Bust: 105)",
+    "Up to 110 (Bust: 120)",
+    "Up to 110"
   ];
 
   const lengthOptions = ["100", "105", "110", "150"];
