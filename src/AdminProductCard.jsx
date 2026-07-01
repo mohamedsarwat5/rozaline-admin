@@ -25,7 +25,7 @@ export default function ProductCard({ product, onDelete }) {
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-5 ">
         <div className="flex items-center gap-2 mb-2 text-indigo-600">
           <Package size={18} />
           <span className="text-sm font-medium capitalize">
@@ -33,7 +33,9 @@ export default function ProductCard({ product, onDelete }) {
           </span>
         </div>
 
-        <h3 className="text-xl font-bold text-gray-800 mb-2 truncate capitalize">{product.name}</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-2 truncate capitalize">
+          {product.name}
+        </h3>
 
         <p className="text-gray-600 text-sm line-clamp-2 mb-4">
           {product.description}
@@ -55,15 +57,13 @@ export default function ProductCard({ product, onDelete }) {
         </div>
 
         {/* Price */}
-        <div className="flex justify-between items-center mb-5">
+        <div className="flex justify-between items-center mb-5 ">
           <span
             className={`font-semibold capitalize ${
-              product.inStock
-                ? "text-green-600"
-                : "text-red-500"
+              product.inStock ? "text-green-600" : "text-red-500"
             }`}
           >
-            {product.inStock?"in Stock":"sold out"}
+            {product.inStock ? "in Stock" : "sold out"}
           </span>
           <span className="text-2xl font-bold text-indigo-600">
             {product.price} EGP
@@ -71,7 +71,7 @@ export default function ProductCard({ product, onDelete }) {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 ">
           <Link
             to={`/updateproduct/${product._id}`}
             className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition"
