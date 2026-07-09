@@ -206,6 +206,7 @@ const UpdateProductForm = () => {
                   <option value="Sets">Sets</option>
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
+                  <option value="Abaya">Abaya</option>
                 </Field>
                 <ErrorMessage
                   name="category"
