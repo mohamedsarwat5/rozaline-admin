@@ -54,31 +54,34 @@ export default function AdminOrders() {
     },
   });
 
-
   // Mutation لحذف الطلب نهائياً
-const deleteOrderMutation = useMutation({
-  mutationFn: async (orderId) => {
-    const cleanUrl = baseUrl.endsWith("/") ? `${baseUrl}orders/${orderId}` : `${baseUrl}/orders/${orderId}`;
-    const { data } = await axios.delete(cleanUrl);
-    return data;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries(["adminOrders"]);
-    setSelectedOrder(null); // إغلاق شق التفاصيل الجانبي إذا كان مفتوحاً
-    alert("🗑️ Order deleted successfully!");
-  },
-  onError: (err) => {
-    alert(err.response?.data?.message || "Failed to delete order");
-  },
-});
+  const deleteOrderMutation = useMutation({
+    mutationFn: async (orderId) => {
+      const cleanUrl = baseUrl.endsWith("/")
+        ? `${baseUrl}orders/${orderId}`
+        : `${baseUrl}/orders/${orderId}`;
+      const { data } = await axios.delete(cleanUrl);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["adminOrders"]);
+      setSelectedOrder(null); // إغلاق شق التفاصيل الجانبي إذا كان مفتوحاً
+      alert("🗑️ Order deleted successfully!");
+    },
+    onError: (err) => {
+      alert(err.response?.data?.message || "Failed to delete order");
+    },
+  });
 
-// دالة تأكيد الحذف لمنع الحذف بالخطأ
-const handleDelete = (e, orderId) => {
-  e.stopPropagation(); // منع فتح تفاصيل الطلب عند الضغط على زر الحذف
-  if (window.confirm("Are you sure you want to permanently delete this order?")) {
-    deleteOrderMutation.mutate(orderId);
-  }
-};
+  // دالة تأكيد الحذف لمنع الحذف بالخطأ
+  const handleDelete = (e, orderId) => {
+    e.stopPropagation(); // منع فتح تفاصيل الطلب عند الضغط على زر الحذف
+    if (
+      window.confirm("Are you sure you want to permanently delete this order?")
+    ) {
+      deleteOrderMutation.mutate(orderId);
+    }
+  };
 
   if (isLoading)
     return (
@@ -153,31 +156,31 @@ const handleDelete = (e, orderId) => {
                         {order.status}
                       </span>
                     </td> */}
-                <td className="p-4 text-center">
-  <div className="flex items-center justify-center gap-2">
-    {/* زر عرض التفاصيل */}
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        setSelectedOrder(order);
-      }}
-      className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 hover:text-burgundy transition-all cursor-pointer"
-      title="View Details"
-    >
-      <Eye size={18} />
-    </button>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {/* زر عرض التفاصيل */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(order);
+                          }}
+                          className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 hover:text-burgundy transition-all cursor-pointer"
+                          title="View Details"
+                        >
+                          <Eye size={18} />
+                        </button>
 
-    {/* زر الحذف الجديد 👈 */}
-    <button
-      onClick={(e) => handleDelete(e, order._id)}
-      disabled={deleteOrderMutation.isPending}
-      className="p-1.5 hover:bg-red-50 rounded-md text-gray-400 hover:text-red-600 transition-all cursor-pointer disabled:opacity-50"
-      title="Delete Order"
-    >
-      <Trash2 size={18} />
-    </button>
-  </div>
-</td>
+                        {/* زر الحذف الجديد 👈 */}
+                        <button
+                          onClick={(e) => handleDelete(e, order._id)}
+                          disabled={deleteOrderMutation.isPending}
+                          className="p-1.5 hover:bg-red-50 rounded-md text-gray-400 hover:text-red-600 transition-all cursor-pointer disabled:opacity-50"
+                          title="Delete Order"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -245,7 +248,7 @@ const handleDelete = (e, orderId) => {
                       </span>
                       {item.selectedWeight && (
                         <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
-                          Weight: <strong>{item.selectedWeight} kg</strong>
+                          Weight: <strong>{item.selectedWeight} </strong>
                         </span>
                       )}
                       {item.selectedLength && (
