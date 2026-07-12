@@ -166,7 +166,7 @@ const AddProductForm = () => {
 
               {/* Category */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 ayhaga">
                   <Layers className="w-4 h-4 text-slate-400" /> Category
                 </label>
                 <Field
