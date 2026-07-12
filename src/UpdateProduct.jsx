@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import axios from "axios"; // تأكد من استيراد الـ axios الفعلي وليس react-router-dom في مشروعك الحقيقي، سأبقيها كودك الأصلي للسلامة
+import axios from "axios";
 import axiosInstance from "axios";
 import {
   Package,
@@ -34,10 +34,8 @@ const ProductValidationSchema = Yup.object().shape({
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
-        image: Yup.string()
-          .url("Must be a valid image URL")
-          .required("Image URL is required"),
-        inStock: Yup.boolean(), // تم إضافة التحقق هنا
+        image: Yup.mixed().required("Image file or URL is required"), // تم تعديله ليقبل الملفات أو الروابط النصية القديمة
+        inStock: Yup.boolean(),
       }),
     )
     .min(1, "At least one color variant is required"),
@@ -84,10 +82,10 @@ const UpdateProductForm = () => {
             data.colors && data.colors.length > 0
               ? data.colors.map((c) => ({
                   color: c.color || "",
-                  image: c.image || "",
-                  inStock: c.inStock ?? true, // ضمان وجود القيمة للمنتجات المخزنة سابقاً
+                  image: c.image || "", // الروابط النصية القديمة هتنزل هنا عادي
+                  inStock: c.inStock ?? true,
                 }))
-              : [{ color: "", image: "", inStock: true }],
+              : [{ color: "", image: null, inStock: true }],
         });
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -104,7 +102,37 @@ const UpdateProductForm = () => {
   // 2. معالجة إرسال البيانات المحدثة بالسيرفر
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      await axiosInstance.put(`${baseUrl}/products/${id}`, values);
+      // رفع الصور الجديدة فقط التي تم تعديلها كملف (File Object)
+      const uploadedColors = await Promise.all(
+        values.colors.map(async (colorItem) => {
+          // لو حقل الصورة عبارة عن Object (ملف جديد) وليس String (رابط قديم)
+          if (colorItem.image && typeof colorItem.image !== "string") {
+            const formData = new FormData();
+            formData.append("file", colorItem.image);
+            formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET");
+
+            // نستخدم axios القياسي لرفع الصور لـ Cloudinary لتفادي تداخل الـ interceptors
+            const cloudinaryResponse = await axios.post(
+              `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
+              formData
+            );
+
+            return {
+              ...colorItem,
+              image: cloudinaryResponse.data.secure_url, // استبدال الملف برابط Cloudinary
+            };
+          }
+          // لو الصورة مفيهاش تعديل وهي عبارة عن String (الرابط القديم) سيبها زي ما هي
+          return colorItem;
+        })
+      );
+
+      const finalValues = {
+        ...values,
+        colors: uploadedColors,
+      };
+
+      await axiosInstance.put(`${baseUrl}/products/${id}`, finalValues);
       alert("Product updated successfully!");
       navigate("/");
     } catch (error) {
@@ -160,7 +188,7 @@ const UpdateProductForm = () => {
         onSubmit={handleUpdateSubmit}
         enableReinitialize={true}
       >
-        {({ values, isSubmitting, errors, touched }) => (
+        {({ values, isSubmitting, errors, touched, setFieldValue }) => ( // تم تفكيك setFieldValue هنا
           <Form className="space-y-6">
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -419,18 +447,45 @@ const UpdateProductForm = () => {
                           />
                         </div>
 
-                        {/* Variant Image URL String */}
+                        {/* Variant Image File / URL Input - التعديل الجديد هنا للتعديل الذكي للصور */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
-                          <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                              <Image className="w-4 h-4 text-slate-400" />
-                            </span>
-                            <Field
-                              name={`colors.${index}.image`}
-                              type="text"
-                              placeholder="Image URL"
-                              className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
-                            />
+                          <div className="flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-500 transition-colors">
+                                <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                <span className="truncate max-w-[180px]">
+                                  {values.colors[index].image
+                                    ? typeof values.colors[index].image === "string"
+                                      ? "Existing Image"
+                                      : values.colors[index].image.name || "Image Selected"
+                                    : "Upload New Image"}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(event) => {
+                                    const file = event.currentTarget.files[0];
+                                    setFieldValue(`colors.${index}.image`, file || null);
+                                  }}
+                                />
+                              </label>
+                            </div>
+
+                            {/* مربع معاينة الصور (Preview) بيشتغل مع روابط الـ DB أو الملفات المحلية */}
+                            {values.colors[index].image && (
+                              <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
+                                <img
+                                  src={
+                                    typeof values.colors[index].image === "string"
+                                      ? values.colors[index].image // لو لينك مخزن في الداتا بيز
+                                      : URL.createObjectURL(values.colors[index].image) // لو ملف لسه مرفوع
+                                  }
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
                           </div>
                           <ErrorMessage
                             name={`colors.${index}.image`}
@@ -439,7 +494,7 @@ const UpdateProductForm = () => {
                           />
                         </div>
 
-                        {/* Color Specific Stock Toggle - إضافة مفتاح التبديل الفرعي */}
+                        {/* Color Specific Stock Toggle */}
                         <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
                             <Field
@@ -471,8 +526,8 @@ const UpdateProductForm = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        push({ color: "", image: "", inStock: true })
-                      } // تضمين inStock عند الإضافة
+                        push({ color: "", image: null, inStock: true })
+                      } // تعديل القيمة الابتدائية لـ null لتجنب مشاكل التحقق
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant

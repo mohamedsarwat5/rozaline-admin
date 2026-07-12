@@ -32,10 +32,8 @@ const ProductValidationSchema = Yup.object().shape({
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
-        image: Yup.string()
-          .url("Must be a valid image URL")
-          .required("Image URL is required"),
-        inStock: Yup.boolean(), // تم تحديث المخطط هنا
+        image: Yup.mixed().required("Image file is required"), // تم تعديله ليقبل ملفات بدلاً من URL فقط
+        inStock: Yup.boolean(),
       }),
     )
     .min(1, "At least one color variant is required"),
@@ -70,12 +68,44 @@ const AddProductForm = () => {
     inStock: true,
     availableWeights: [],
     availableLengths: [],
-    colors: [{ color: "", image: "", inStock: true }], // تم تحديث القيمة الابتدائية هنا
+    colors: [{ color: "", image: null, inStock: true }], // تغيير القيمة الابتدائية للصورة إلى null
   };
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      const response = await axios.post(`${baseUrl}/products`, values);
+      // 1. رفع الصور المحددة إلى Cloudinary بالتوازي لتوفير الوقت
+      const uploadedColors = await Promise.all(
+        values.colors.map(async (colorItem) => {
+          // نتأكد إن الحقل يحتوي على ملف وليس رابط نصي قديم
+          if (colorItem.image && typeof colorItem.image !== "string") {
+            const formData = new FormData();
+            formData.append("file", colorItem.image);
+
+            // استبدل الأكواد بالـ Cloud Name والـ Unsigned Upload Preset الخاصة بك
+            formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET");
+
+            const cloudinaryResponse = await axios.post(
+              `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
+              formData
+            );
+
+            return {
+              ...colorItem,
+              image: cloudinaryResponse.data.secure_url, // استبدال كائن الملف بالرابط النصي النهائي
+            };
+          }
+          return colorItem;
+        })
+      );
+
+      // 2. دمج مصفوفة الألوان الجديدة بعد تحويل صورها إلى روابط داخل الداتا النهائية
+      const finalValues = {
+        ...values,
+        colors: uploadedColors,
+      };
+
+      // 3. إرسال الداتا للباك إند بنفس الطريقة القديمة تماماً
+      const response = await axios.post(`${baseUrl}/products`, finalValues);
       alert("Product added successfully!");
       resetForm();
       navigate("/");
@@ -103,25 +133,24 @@ const AddProductForm = () => {
           </p>
         </div>
       </div>
-
       <Formik
         initialValues={initialValues}
         validationSchema={ProductValidationSchema}
         onSubmit={handleSubmit}
       >
-        {({ values, isSubmitting, errors, touched }) => (
+        {({ values, isSubmitting, errors, touched, setFieldValue }) => ( // تم إضافة setFieldValue هنا للتحكم برفع الملفات
           <Form className="space-y-6">
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Product Name */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-slate-400" /> Product Name
+                  <Package className="w-4 h-4 text-slate-400" /> Model Name
                 </label>
                 <Field
                   name="name"
                   type="text"
-                  placeholder="e.g. Wireless Ergonomic Mouse"
+                  placeholder="Model name"
                   className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                     errors.name && touched.name
                       ? "border-red-400 focus:ring-red-200"
@@ -327,7 +356,7 @@ const AddProductForm = () => {
                     Color Variants
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Add at least one color variant, an associated image URL, and
+                    Add at least one color variant, upload an associated image file, and
                     its stock status.
                   </p>
                 </div>
@@ -366,19 +395,45 @@ const AddProductForm = () => {
                           />
                         </div>
 
-                        {/* Variant Image URL String */}
+                        {/* Variant Image File Upload - التعديل الجديد هنا يدعم رفع الملفات مع الحفاظ على نفس الاستايل الجمالي للمشروع */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
-                          <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                              <Image className="w-4 h-4 text-slate-400" />
-                            </span>
-                            <Field
-                              name={`colors.${index}.image`}
-                              type="text"
-                              placeholder="Image URL (https://example.com/image.png)"
-                              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
-                            />
+                          <div className="flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-500 transition-colors">
+                                <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                <span className="truncate max-w-[180px]">
+                                  {values.colors[index].image
+                                    ? values.colors[index].image.name || "Image Selected"
+                                    : "Upload Image File"}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(event) => {
+                                    const file = event.currentTarget.files[0];
+                                    setFieldValue(`colors.${index}.image`, file || null);
+                                  }}
+                                />
+                              </label>
+                            </div>
+
+                            {/* مربع صغير لمعاينة الصورة Preview قبل الرفع */}
+                            {values.colors[index].image && (
+                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+                                <img
+                                  src={
+                                    typeof values.colors[index].image === "string"
+                                      ? values.colors[index].image
+                                      : URL.createObjectURL(values.colors[index].image)
+                                  }
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
                           </div>
+
                           <ErrorMessage
                             name={`colors.${index}.image`}
                             component="span"
@@ -386,7 +441,7 @@ const AddProductForm = () => {
                           />
                         </div>
 
-                        {/* Color Specific Stock Toggle - التعديل الجديد هنا */}
+                        {/* Color Specific Stock Toggle */}
                         <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
                             <Field
@@ -418,8 +473,8 @@ const AddProductForm = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        push({ color: "", image: "", inStock: true })
-                      } // تحديث الـ push هنا
+                        push({ color: "", image: null, inStock: true })
+                      } // تحديث الـ push لتبدأ بـ null بدلاً من نص فارغ
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-indigo-50/30"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
