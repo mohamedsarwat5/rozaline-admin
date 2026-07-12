@@ -465,7 +465,7 @@ const UpdateProductForm = () => {
                                   accept="image/*"
                                   className="hidden"
                                   onChange={(event) => {
-                                    const file = event.currentTarget.files[0];
+                                    const file = event.target.files?.[0];
                                     setFieldValue(`colors.${index}.image`, file || null);
                                   }}
                                 />

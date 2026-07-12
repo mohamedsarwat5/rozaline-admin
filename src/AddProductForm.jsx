@@ -396,12 +396,12 @@ const AddProductForm = () => {
                         </div>
 
                         {/* Variant Image File Upload - التعديل الجديد هنا يدعم رفع الملفات مع الحفاظ على نفس الاستايل الجمالي للمشروع */}
-                        <div className="flex-[2] w-full flex flex-col gap-1.5">
+                        <div className="flex-2 w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
                               <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-500 transition-colors">
-                                <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                                <span className="truncate max-w-[180px]">
+                                <Image className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-45">
                                   {values.colors[index].image
                                     ? values.colors[index].image.name || "Image Selected"
                                     : "Upload Image File"}
@@ -420,7 +420,7 @@ const AddProductForm = () => {
 
                             {/* مربع صغير لمعاينة الصورة Preview قبل الرفع */}
                             {values.colors[index].image && (
-                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
+                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 shrink-0">
                                 <img
                                   src={
                                     typeof values.colors[index].image === "string"
@@ -442,7 +442,7 @@ const AddProductForm = () => {
                         </div>
 
                         {/* Color Specific Stock Toggle */}
-                        <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
+                        <div className="flex items-center gap-2 min-w-30 self-center pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
                             <Field
                               type="checkbox"

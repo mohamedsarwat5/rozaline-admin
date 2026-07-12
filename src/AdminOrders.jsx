@@ -216,7 +216,7 @@ export default function AdminOrders() {
               <div className="flex items-center gap-2 items-start">
                 <MapPin
                   size={16}
-                  className="text-gray-400 mt-0.5 flex-shrink-0"
+                  className="text-gray-400 mt-0.5 shrink-0"
                 />
                 <span className="text-xs leading-relaxed">
                   {selectedOrder.address}
@@ -234,7 +234,7 @@ export default function AdminOrders() {
                   <img
                     src={item.selectedColor?.image}
                     alt=""
-                    className="w-12 h-16 object-cover rounded bg-gray-100 border flex-shrink-0"
+                    className="w-12 h-16 object-cover rounded bg-gray-100 border shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <h5 className="font-semibold text-sm text-gray-800 truncate capitalize">
