@@ -185,6 +185,7 @@ const AddProductForm = () => {
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
                   <option value="Abaya">Abaya</option>
+                  <option value="Soiree">Soiree</option>
                 </Field>
                 <ErrorMessage
                   name="category"

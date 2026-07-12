@@ -109,12 +109,16 @@ const UpdateProductForm = () => {
           if (colorItem.image && typeof colorItem.image !== "string") {
             const formData = new FormData();
             formData.append("file", colorItem.image);
-            formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET");
+            formData.append(
+              "upload_preset",
+              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ||
+                "YOUR_UPLOAD_PRESET",
+            );
 
             // نستخدم axios القياسي لرفع الصور لـ Cloudinary لتفادي تداخل الـ interceptors
             const cloudinaryResponse = await axios.post(
               `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
-              formData
+              formData,
             );
 
             return {
@@ -124,7 +128,7 @@ const UpdateProductForm = () => {
           }
           // لو الصورة مفيهاش تعديل وهي عبارة عن String (الرابط القديم) سيبها زي ما هي
           return colorItem;
-        })
+        }),
       );
 
       const finalValues = {
@@ -188,7 +192,9 @@ const UpdateProductForm = () => {
         onSubmit={handleUpdateSubmit}
         enableReinitialize={true}
       >
-        {({ values, isSubmitting, errors, touched, setFieldValue }) => ( // تم تفكيك setFieldValue هنا
+        {(
+          { values, isSubmitting, errors, touched, setFieldValue }, // تم تفكيك setFieldValue هنا
+        ) => (
           <Form className="space-y-6">
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -235,6 +241,7 @@ const UpdateProductForm = () => {
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
                   <option value="Abaya">Abaya</option>
+                  <option value="Soiree">Soiree</option>
                 </Field>
                 <ErrorMessage
                   name="category"
@@ -455,9 +462,11 @@ const UpdateProductForm = () => {
                                 <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
                                   {values.colors[index].image
-                                    ? typeof values.colors[index].image === "string"
+                                    ? typeof values.colors[index].image ===
+                                      "string"
                                       ? "Existing Image"
-                                      : values.colors[index].image.name || "Image Selected"
+                                      : values.colors[index].image.name ||
+                                        "Image Selected"
                                     : "Upload New Image"}
                                 </span>
                                 <input
@@ -466,7 +475,10 @@ const UpdateProductForm = () => {
                                   className="hidden"
                                   onChange={(event) => {
                                     const file = event.target.files?.[0];
-                                    setFieldValue(`colors.${index}.image`, file || null);
+                                    setFieldValue(
+                                      `colors.${index}.image`,
+                                      file || null,
+                                    );
                                   }}
                                 />
                               </label>
@@ -477,9 +489,12 @@ const UpdateProductForm = () => {
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
                                   src={
-                                    typeof values.colors[index].image === "string"
+                                    typeof values.colors[index].image ===
+                                    "string"
                                       ? values.colors[index].image // لو لينك مخزن في الداتا بيز
-                                      : URL.createObjectURL(values.colors[index].image) // لو ملف لسه مرفوع
+                                      : URL.createObjectURL(
+                                          values.colors[index].image,
+                                        ) // لو ملف لسه مرفوع
                                   }
                                   alt="Preview"
                                   className="w-full h-full object-cover"
