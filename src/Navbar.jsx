@@ -6,7 +6,7 @@ export default function Navbar() {
   const links = [
     { path: "/", name: "ِAll Products" },
     { path: "/addProduct", name: "Add Product" },
-    {path:"/orders",name:"Orders"}
+    {path:"/orders",name:"Orders33"}
     // { path: `/updateproduct/${id}`, name: "Update Product" },
   ];
 
