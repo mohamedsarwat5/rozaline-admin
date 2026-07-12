@@ -4,28 +4,20 @@ import { Link } from "react-router-dom";
 
 export default function ProductCard({ product, onDelete }) {
   return (
-    <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300">
+    // أضفنا flex flex-col و h-full هنا لتوحيد ارتفاع الكروت
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300">
       {/* Product Image */}
-      <div className="relative h-64 bg-gray-100">
+      <div className="relative h-64 bg-gray-100 flex-shrink-0">
         <img
           src={product.colors?.[0]?.image}
           alt={product.name}
           className="w-full h-full object-cover"
         />
-
-        {/* <span
-          className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium text-white ${
-            product.inStock === "sold out"
-              ? "bg-red-500"
-              : "bg-green-500"
-          }`}
-        >
-          {product.inStock}
-        </span> */}
       </div>
 
       {/* Content */}
-      <div className="p-5 ">
+      {/* أضفنا flex-1 flex flex-col هنا لتوزيع المساحة المتبقية */}
+      <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center gap-2 mb-2 text-indigo-600">
           <Package size={18} />
           <span className="text-sm font-medium capitalize">
@@ -47,10 +39,8 @@ export default function ProductCard({ product, onDelete }) {
             <div
               key={item._id}
               className="capitalize px-3 py-1 bg-indigo-100 rounded-xl"
-              //   style={{ backgroundColor: item.color }}
               title={item.color}
             >
-              {" "}
               {item.color}
             </div>
           ))}
@@ -71,7 +61,8 @@ export default function ProductCard({ product, onDelete }) {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 ">
+        {/* أضفنا mt-auto ليدفع الأزرار لأسفل الكارد تماماً مهما كان حجم النصوص بالأعلى */}
+        <div className="flex gap-3 mt-auto">
           <Link
             to={`/updateproduct/${product._id}`}
             className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition"
