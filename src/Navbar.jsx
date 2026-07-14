@@ -10,14 +10,12 @@ export default function Navbar() {
   ];
 
   return (
-    <div className="p-4 md:p-6 bg-indigo-600">
-      <nav className="flex items-center justify-between">
-        <div>
-          <h2>Rozaline</h2>
-        </div>
+    <div className="p-4 md:p-6 bg-pink-400">
+      <nav className="flex items-center justify-center ">
+
 
         <div>
-          <ul className="flex items-center space-x-3">
+          <ul className="flex items-center space-x-5">
             {links.map(({path,name},i)=>(
             <li key={i} className="text-white relative font-medium">
                 <NavLink className={``} to={path}>{name}</NavLink>
