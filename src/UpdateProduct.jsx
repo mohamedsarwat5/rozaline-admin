@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
-import axiosInstance from "axios"; // Fixed: Points to your local axios instance config instead of duplicating the npm package
+import axiosInstance from "axios"; // يعتمد على الـ Instance المحلية الخاصة بك
 import {
   Package,
   FileText,
@@ -17,13 +17,13 @@ import {
   Trash2,
   Loader2,
   ArrowLeft,
-  Scale,
-  Ruler,
+  Sparkles,
+  Flame,
 } from "lucide-react";
 
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
-// Validation Schema
+// مخطط التحقق (Validation Schema)
 const ProductValidationSchema = Yup.object().shape({
   name: Yup.string().trim().required("Product name is required"),
   description: Yup.string().trim().required("Description is required"),
@@ -32,6 +32,8 @@ const ProductValidationSchema = Yup.object().shape({
     .positive("Price must be positive")
     .required("Price is required"),
   inStock: Yup.boolean(),
+  newArrival: Yup.boolean(),
+  bestSeller: Yup.boolean(),
   colors: Yup.array()
     .of(
       Yup.object().shape({
@@ -63,7 +65,7 @@ const UpdateProductForm = () => {
   const [initialValues, setInitialValues] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
 
-  // 1. Fetch current product data on mount
+  // 1. جلب بيانات المنتج الحالية عند تحميل المكون
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
@@ -75,6 +77,8 @@ const UpdateProductForm = () => {
           category: data.category || "",
           price: data.price || "",
           inStock: data.inStock ?? true,
+          newArrival: data.newArrival ?? false,
+          bestSeller: data.bestSeller ?? false,
           availableWeights: data.availableWeights || [],
           availableLengths: data.availableLengths || [],
           colors:
@@ -98,10 +102,10 @@ const UpdateProductForm = () => {
     fetchProductDetails();
   }, [id, navigate]);
 
-  // 2. Handle product update updates
+  // 2. معالجة تحديث المنتج وإرسال البيانات
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      // Upload new raw file blocks only
+      // رفع الصور الجديدة فقط إلى Cloudinary إذا تم تعديلها
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
           if (colorItem.image && typeof colorItem.image !== "string") {
@@ -156,7 +160,7 @@ const UpdateProductForm = () => {
 
   return (
     <div className="max-w-4xl mx-auto my-10 p-8 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
-      {/* Header section */}
+      {/* رأس الصفحة */}
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
@@ -189,9 +193,9 @@ const UpdateProductForm = () => {
       >
         {({ values, isSubmitting, errors, touched, setFieldValue }) => (
           <Form className="space-y-6">
-            {/* Main Info Grid */}
+            {/* شبكة البيانات الأساسية */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Product Name */}
+              {/* اسم المنتج */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Package className="w-4 h-4 text-slate-400" /> Product Name
@@ -213,7 +217,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Category */}
+              {/* الفئة */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-slate-400" /> Category
@@ -244,44 +248,39 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Available Weights (Upgraded to Selector Badges) */}
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <Scale className="w-4 h-4 text-slate-400" /> Available Weights
+              {/* الأوزان المتاحة (مطابق تماماً لـ addProduct الكود الخاص بك) */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Weights
                 </label>
+
                 <FieldArray name="availableWeights">
                   {({ push, remove }) => (
-                    <div className="flex flex-wrap gap-2">
-                      {weightOptions.map((weight) => {
-                        const isChecked = (values.availableWeights || []).includes(weight);
-                        return (
-                          <label
-                            key={weight}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-medium border cursor-pointer transition-all select-none ${
-                              isChecked
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
-                                : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (!isChecked) {
-                                  push(weight);
-                                } else {
-                                  remove(values.availableWeights.indexOf(weight));
-                                }
-                              }}
-                            />
-                            {weight}
-                          </label>
-                        );
-                      })}
+                    <div className="grid grid-cols-1 gap-2">
+                      {weightOptions.map((weight) => (
+                        <label
+                          key={weight}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={values.availableWeights.includes(weight)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(weight);
+                              } else {
+                                remove(values.availableWeights.indexOf(weight));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          {weight}
+                        </label>
+                      ))}
                     </div>
                   )}
                 </FieldArray>
+
                 <ErrorMessage
                   name="availableWeights"
                   component="span"
@@ -289,44 +288,39 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Available Lengths (Upgraded to Selector Badges) */}
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <Ruler className="w-4 h-4 text-slate-400" /> Available Lengths
+              {/* الأطوال المتاحة (مطابق تماماً لـ addProduct الكود الخاص بك) */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Lengths
                 </label>
+
                 <FieldArray name="availableLengths">
                   {({ push, remove }) => (
-                    <div className="flex flex-wrap gap-2">
-                      {lengthOptions.map((length) => {
-                        const isChecked = (values.availableLengths || []).includes(length);
-                        return (
-                          <label
-                            key={length}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-medium border cursor-pointer transition-all select-none ${
-                              isChecked
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
-                                : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={isChecked}
-                              onChange={() => {
-                                if (!isChecked) {
-                                  push(length);
-                                } else {
-                                  remove(values.availableLengths.indexOf(length));
-                                }
-                              }}
-                            />
-                            {length} cm
-                          </label>
-                        );
-                      })}
+                    <div className="grid grid-cols-2 gap-2">
+                      {lengthOptions.map((length) => (
+                        <label
+                          key={length}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={values.availableLengths.includes(length)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                push(length);
+                              } else {
+                                remove(values.availableLengths.indexOf(length));
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          {length}
+                        </label>
+                      ))}
                     </div>
                   )}
                 </FieldArray>
+
                 <ErrorMessage
                   name="availableLengths"
                   component="span"
@@ -334,7 +328,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Price */}
+              {/* السعر */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-slate-400" /> Price (EGP)
@@ -357,30 +351,73 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Stock Status Toggle */}
-              <div className="flex flex-col gap-1.5 justify-center">
-                <span className="text-sm font-semibold text-slate-700 mb-2 block">
-                  Availability Status
-                </span>
-                <label className="inline-flex items-center cursor-pointer select-none">
-                  <Field type="checkbox" name="inStock" className="sr-only peer" />
-                  <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  <span className="ms-3 text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                    {values.inStock ? (
-                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> In Stock
-                      </span>
-                    ) : (
-                      <span className="text-amber-600 font-semibold flex items-center gap-1">
-                        <XCircle className="w-4 h-4" /> Sold out
-                      </span>
-                    )}
+              {/* لوحة التحكم بالحالات والشارات (Status & Badges Block) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
+                {/* حالة التوفر في المخزن */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Availability
                   </span>
-                </label>
+                  <label className="inline-flex items-center cursor-pointer select-none mt-1">
+                    <Field type="checkbox" name="inStock" className="sr-only peer" />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700">
+                      {values.inStock ? (
+                        <span className="text-emerald-600 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" /> In Stock
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 flex items-center gap-1">
+                          <XCircle className="w-4 h-4" /> Sold out
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+
+                {/* تشغيل/إيقاف New Arrival */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    New Arrival
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none mt-1">
+                    <Field type="checkbox" name="newArrival" className="sr-only peer" />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700">
+                      {values.newArrival ? (
+                        <span className="text-indigo-600 flex items-center gap-1">
+                          <Sparkles className="w-4 h-4" /> Active
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Inactive</span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+
+                {/* تشغيل/إيقاف Best Seller */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Best Seller
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none mt-1">
+                    <Field type="checkbox" name="bestSeller" className="sr-only peer" />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700">
+                      {values.bestSeller ? (
+                        <span className="text-amber-500 flex items-center gap-1">
+                          <Flame className="w-4 h-4" /> Active
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Inactive</span>
+                      )}
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 
-            {/* Description */}
+            {/* الوصف */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-slate-400" /> Description
@@ -405,7 +442,7 @@ const UpdateProductForm = () => {
 
             <hr className="my-6 border-slate-100" />
 
-            {/* Dynamic Colors & Images Array */}
+            {/* مصفوفة الألوان والصور المتغيرة (Colors & Images Array) */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -427,7 +464,7 @@ const UpdateProductForm = () => {
                         key={index}
                         className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 bg-slate-50/40 rounded-2xl border border-slate-100 relative group"
                       >
-                        {/* Variant Color String */}
+                        {/* اسم أو كود اللون */}
                         <div className="flex-1 w-full flex flex-col gap-1.5">
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -447,7 +484,7 @@ const UpdateProductForm = () => {
                           />
                         </div>
 
-                        {/* Variant Image File / URL Input */}
+                        {/* إدخال الصورة / الرابط للمتغير */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
@@ -472,7 +509,7 @@ const UpdateProductForm = () => {
                               </label>
                             </div>
 
-                            {/* Image Preview Box */}
+                            {/* معاينة الصورة المحددة */}
                             {values.colors[index].image && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
@@ -494,7 +531,7 @@ const UpdateProductForm = () => {
                           />
                         </div>
 
-                        {/* Color Specific Stock Toggle */}
+                        {/* مفتاح تبديل التوفر الخاص بكل لون */}
                         <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
                             <Field
@@ -509,7 +546,7 @@ const UpdateProductForm = () => {
                           </label>
                         </div>
 
-                        {/* Remove Variant Button */}
+                        {/* زر حذف المتغير */}
                         {values.colors.length > 1 && (
                           <button
                             type="button"
@@ -535,7 +572,7 @@ const UpdateProductForm = () => {
               </FieldArray>
             </div>
 
-            {/* Submit Updates Button */}
+            {/* زر حفظ التغييرات وإرسال التحديث */}
             <div className="pt-4">
               <button
                 type="submit"
