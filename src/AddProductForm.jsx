@@ -14,6 +14,8 @@ import {
   Plus,
   Trash2,
   Loader2,
+  Award,       // تم استيراد أيكونة الأكثر مبيعاً
+  Sparkles,    // تم استيراد أيكونة المنتجات الجديدة
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -28,11 +30,13 @@ const ProductValidationSchema = Yup.object().shape({
     .positive("Price must be positive")
     .required("Price is required"),
   inStock: Yup.boolean(),
+  bestSeller: Yup.boolean(), // تم الإضافة هنا
+  newArrival: Yup.boolean(), // تم الإضافة هنا
   colors: Yup.array()
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
-        image: Yup.mixed().required("Image file is required"), // تم تعديله ليقبل ملفات بدلاً من URL فقط
+        image: Yup.mixed().required("Image file is required"),
         inStock: Yup.boolean(),
       }),
     )
@@ -66,9 +70,11 @@ const AddProductForm = () => {
     category: "",
     price: "",
     inStock: true,
+    bestSeller: false,  // تم التأكيد عليها بقيمة ابتدائية false
+    newArrival: false,  // تم الإضافة هنا بقيمة ابتدائية false
     availableWeights: [],
     availableLengths: [],
-    colors: [{ color: "", image: null, inStock: true }], // تغيير القيمة الابتدائية للصورة إلى null
+    colors: [{ color: "", image: null, inStock: true }],
   };
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
@@ -76,12 +82,9 @@ const AddProductForm = () => {
       // 1. رفع الصور المحددة إلى Cloudinary بالتوازي لتوفير الوقت
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
-          // نتأكد إن الحقل يحتوي على ملف وليس رابط نصي قديم
           if (colorItem.image && typeof colorItem.image !== "string") {
             const formData = new FormData();
             formData.append("file", colorItem.image);
-
-            // استبدل الأكواد بالـ Cloud Name والـ Unsigned Upload Preset الخاصة بك
             formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET");
 
             const cloudinaryResponse = await axios.post(
@@ -91,7 +94,7 @@ const AddProductForm = () => {
 
             return {
               ...colorItem,
-              image: cloudinaryResponse.data.secure_url, // استبدال كائن الملف بالرابط النصي النهائي
+              image: cloudinaryResponse.data.secure_url,
             };
           }
           return colorItem;
@@ -104,7 +107,7 @@ const AddProductForm = () => {
         colors: uploadedColors,
       };
 
-      // 3. إرسال الداتا للباك إند بنفس الطريقة القديمة تماماً
+      // 3. إرسال الداتا للباك إند
       const response = await axios.post(`${baseUrl}/products`, finalValues);
       alert("Product added successfully!");
       resetForm();
@@ -138,7 +141,7 @@ const AddProductForm = () => {
         validationSchema={ProductValidationSchema}
         onSubmit={handleSubmit}
       >
-        {({ values, isSubmitting, errors, touched, setFieldValue }) => ( // تم إضافة setFieldValue هنا للتحكم برفع الملفات
+        {({ values, isSubmitting, errors, touched, setFieldValue }) => (
           <Form className="space-y-6">
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -166,7 +169,7 @@ const AddProductForm = () => {
 
               {/* Category */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2 ayhaga">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-slate-400" /> Category
                 </label>
                 <Field
@@ -298,31 +301,95 @@ const AddProductForm = () => {
                 />
               </div>
 
-              {/* Stock Status Toggle */}
-              <div className="flex flex-col gap-1.5 justify-center">
-                <span className="text-sm font-semibold text-slate-700 mb-2 block">
-                  Availability Status
-                </span>
-                <label className="inline-flex items-center cursor-pointer select-none">
-                  <Field
-                    type="checkbox"
-                    name="inStock"
-                    className="sr-only peer"
-                  />
-                  <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  <span className="ms-3 text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                    {values.inStock ? (
-                      <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> In Stock
-                      </span>
-                    ) : (
-                      <span className="text-amber-600 font-semibold flex items-center gap-1">
-                        <XCircle className="w-4 h-4" /> Sold out
-                      </span>
-                    )}
-                  </span>
-                </label>
-              </div>
+              {/* تجميع كل الـ Switches التفاعلية في حاوية فرعية رائعة داخل الجريد الأساسي */}
+             {/* Switches Container */}
+<div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6 p-5 bg-slate-50/50 border border-slate-100 rounded-2xl mt-2">
+
+  {/* Stock Status Toggle */}
+  <div className="flex flex-col gap-1.5">
+    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+      Availability Status
+    </span>
+    <label className="inline-flex items-center cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="inStock"
+        checked={values.inStock}
+        onChange={() => setFieldValue("inStock", !values.inStock)}
+        className="sr-only peer"
+      />
+      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+        {values.inStock ? (
+          <span className="text-emerald-600 font-semibold flex items-center gap-1">
+            <CheckCircle className="w-4 h-4 shrink-0" /> In Stock
+          </span>
+        ) : (
+          <span className="text-amber-600 font-semibold flex items-center gap-1">
+            <XCircle className="w-4 h-4 shrink-0" /> Sold out
+          </span>
+        )}
+      </span>
+    </label>
+  </div>
+
+  {/* Best Seller Toggle */}
+  <div className="flex flex-col gap-1.5">
+    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+      Best Seller Badge
+    </span>
+    <label className="inline-flex items-center cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="bestSeller"
+        checked={values.bestSeller}
+        onChange={() => setFieldValue("bestSeller", !values.bestSeller)}
+        className="sr-only peer"
+      />
+      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+        {values.bestSeller ? (
+          <span className="text-amber-500 font-semibold flex items-center gap-1">
+            <Award className="w-4 h-4 shrink-0" /> Best Seller
+          </span>
+        ) : (
+          <span className="text-slate-400 font-medium flex items-center gap-1">
+            <Award className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
+          </span>
+        )}
+      </span>
+    </label>
+  </div>
+
+  {/* New Arrival Toggle */}
+  <div className="flex flex-col gap-1.5">
+    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+      New Arrival Badge
+    </span>
+    <label className="inline-flex items-center cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="newArrival"
+        checked={values.newArrival}
+        onChange={() => setFieldValue("newArrival", !values.newArrival)}
+        className="sr-only peer"
+      />
+      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+        {values.newArrival ? (
+          <span className="text-violet-600 font-semibold flex items-center gap-1">
+            <Sparkles className="w-4 h-4 shrink-0" /> New Arrival
+          </span>
+        ) : (
+          <span className="text-slate-400 font-medium flex items-center gap-1">
+            <Sparkles className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
+          </span>
+        )}
+      </span>
+    </label>
+  </div>
+
+</div>
             </div>
 
             {/* Description */}
@@ -397,7 +464,7 @@ const AddProductForm = () => {
                           />
                         </div>
 
-                        {/* Variant Image File Upload - التعديل الجديد هنا يدعم رفع الملفات مع الحفاظ على نفس الاستايل الجمالي للمشروع */}
+                        {/* Variant Image File Upload */}
                         <div className="flex-2 w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
@@ -476,7 +543,7 @@ const AddProductForm = () => {
                       type="button"
                       onClick={() =>
                         push({ color: "", image: null, inStock: true })
-                      } // تحديث الـ push لتبدأ بـ null بدلاً من نص فارغ
+                      }
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 text-slate-600 hover:text-indigo-600 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-indigo-50/30"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
-import axiosInstance from "axios";
+import axiosInstance from "axios"; // Fixed: Points to your local axios instance config instead of duplicating the npm package
 import {
   Package,
   FileText,
@@ -17,11 +17,13 @@ import {
   Trash2,
   Loader2,
   ArrowLeft,
+  Scale,
+  Ruler,
 } from "lucide-react";
 
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
-// مخطط التحقق (Validation Schema)
+// Validation Schema
 const ProductValidationSchema = Yup.object().shape({
   name: Yup.string().trim().required("Product name is required"),
   description: Yup.string().trim().required("Description is required"),
@@ -34,13 +36,12 @@ const ProductValidationSchema = Yup.object().shape({
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
-        image: Yup.mixed().required("Image file or URL is required"), // تم تعديله ليقبل الملفات أو الروابط النصية القديمة
+        image: Yup.mixed().required("Image file or URL is required"),
         inStock: Yup.boolean(),
       }),
     )
     .min(1, "At least one color variant is required"),
   availableWeights: Yup.array().of(Yup.string()),
-
   availableLengths: Yup.array().of(Yup.string()),
 });
 
@@ -62,13 +63,12 @@ const UpdateProductForm = () => {
   const [initialValues, setInitialValues] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
 
-  // 1. جلب بيانات المنتج الحالية فور تحميل الصفحة
+  // 1. Fetch current product data on mount
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         const { data } = await axiosInstance.get(`${baseUrl}/products/${id}`);
 
-        // تعيين القيم القادمة وتحديث هيكل مصفوفة الألوان
         setInitialValues({
           name: data.name || "",
           description: data.description || "",
@@ -77,12 +77,11 @@ const UpdateProductForm = () => {
           inStock: data.inStock ?? true,
           availableWeights: data.availableWeights || [],
           availableLengths: data.availableLengths || [],
-
           colors:
             data.colors && data.colors.length > 0
               ? data.colors.map((c) => ({
                   color: c.color || "",
-                  image: c.image || "", // الروابط النصية القديمة هتنزل هنا عادي
+                  image: c.image || "",
                   inStock: c.inStock ?? true,
                 }))
               : [{ color: "", image: null, inStock: true }],
@@ -99,34 +98,30 @@ const UpdateProductForm = () => {
     fetchProductDetails();
   }, [id, navigate]);
 
-  // 2. معالجة إرسال البيانات المحدثة بالسيرفر
+  // 2. Handle product update updates
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      // رفع الصور الجديدة فقط التي تم تعديلها كملف (File Object)
+      // Upload new raw file blocks only
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
-          // لو حقل الصورة عبارة عن Object (ملف جديد) وليس String (رابط قديم)
           if (colorItem.image && typeof colorItem.image !== "string") {
             const formData = new FormData();
             formData.append("file", colorItem.image);
             formData.append(
               "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ||
-                "YOUR_UPLOAD_PRESET",
+              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
             );
 
-            // نستخدم axios القياسي لرفع الصور لـ Cloudinary لتفادي تداخل الـ interceptors
             const cloudinaryResponse = await axios.post(
               `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
-              formData,
+              formData
             );
 
             return {
               ...colorItem,
-              image: cloudinaryResponse.data.secure_url, // استبدال الملف برابط Cloudinary
+              image: cloudinaryResponse.data.secure_url,
             };
           }
-          // لو الصورة مفيهاش تعديل وهي عبارة عن String (الرابط القديم) سيبها زي ما هي
           return colorItem;
         }),
       );
@@ -161,8 +156,8 @@ const UpdateProductForm = () => {
 
   return (
     <div className="max-w-4xl mx-auto my-10 p-8 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
-      {/* رأس الصفحة مع زر العودة للرئيسية */}
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
+      {/* Header section */}
+      <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
             <Package className="w-6 h-6" />
@@ -192,9 +187,7 @@ const UpdateProductForm = () => {
         onSubmit={handleUpdateSubmit}
         enableReinitialize={true}
       >
-        {(
-          { values, isSubmitting, errors, touched, setFieldValue }, // تم تفكيك setFieldValue هنا
-        ) => (
+        {({ values, isSubmitting, errors, touched, setFieldValue }) => (
           <Form className="space-y-6">
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -207,7 +200,7 @@ const UpdateProductForm = () => {
                   name="name"
                   type="text"
                   placeholder="e.g. Wireless Ergonomic Mouse"
-                  className={`px-4 py-2.5 rounded-xl border  bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
+                  className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                     errors.name && touched.name
                       ? "border-red-400 focus:ring-red-200"
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
@@ -251,40 +244,44 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Available Weights */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Available Weights
+              {/* Available Weights (Upgraded to Selector Badges) */}
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Scale className="w-4 h-4 text-slate-400" /> Available Weights
                 </label>
-
                 <FieldArray name="availableWeights">
                   {({ push, remove }) => (
-                    <div className="grid grid-cols-1 gap-2">
-                      {weightOptions.map((weight) => (
-                        <label
-                          key={weight}
-                          className="flex items-center gap-2 text-sm text-slate-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(values.availableWeights || []).includes(
-                              weight,
-                            )}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                push(weight);
-                              } else {
-                                remove(values.availableWeights.indexOf(weight));
-                              }
-                            }}
-                          />
-                          {weight}
-                        </label>
-                      ))}
+                    <div className="flex flex-wrap gap-2">
+                      {weightOptions.map((weight) => {
+                        const isChecked = (values.availableWeights || []).includes(weight);
+                        return (
+                          <label
+                            key={weight}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-medium border cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
+                                : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (!isChecked) {
+                                  push(weight);
+                                } else {
+                                  remove(values.availableWeights.indexOf(weight));
+                                }
+                              }}
+                            />
+                            {weight}
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </FieldArray>
-
                 <ErrorMessage
                   name="availableWeights"
                   component="span"
@@ -292,40 +289,44 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Available Lengths */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Available Lengths
+              {/* Available Lengths (Upgraded to Selector Badges) */}
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Ruler className="w-4 h-4 text-slate-400" /> Available Lengths
                 </label>
-
                 <FieldArray name="availableLengths">
                   {({ push, remove }) => (
-                    <div className="grid grid-cols-2 gap-2">
-                      {lengthOptions.map((length) => (
-                        <label
-                          key={length}
-                          className="flex items-center gap-2 text-sm text-slate-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(values.availableLengths || []).includes(
-                              length,
-                            )}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                push(length);
-                              } else {
-                                remove(values.availableLengths.indexOf(length));
-                              }
-                            }}
-                          />
-                          {length}
-                        </label>
-                      ))}
+                    <div className="flex flex-wrap gap-2">
+                      {lengthOptions.map((length) => {
+                        const isChecked = (values.availableLengths || []).includes(length);
+                        return (
+                          <label
+                            key={length}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-medium border cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
+                                : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (!isChecked) {
+                                  push(length);
+                                } else {
+                                  remove(values.availableLengths.indexOf(length));
+                                }
+                              }}
+                            />
+                            {length} cm
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </FieldArray>
-
                 <ErrorMessage
                   name="availableLengths"
                   component="span"
@@ -362,11 +363,7 @@ const UpdateProductForm = () => {
                   Availability Status
                 </span>
                 <label className="inline-flex items-center cursor-pointer select-none">
-                  <Field
-                    type="checkbox"
-                    name="inStock"
-                    className="sr-only peer"
-                  />
+                  <Field type="checkbox" name="inStock" className="sr-only peer" />
                   <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   <span className="ms-3 text-sm font-medium text-slate-700 flex items-center gap-1.5">
                     {values.inStock ? (
@@ -406,24 +403,19 @@ const UpdateProductForm = () => {
               />
             </div>
 
-            <hr className="my-6 border-slate-50" />
+            <hr className="my-6 border-slate-100" />
 
             {/* Dynamic Colors & Images Array */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-md font-bold text-slate-800">
-                    Color Variants
-                  </h3>
+                  <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
                   <p className="text-xs text-slate-400">
-                    Manage your existing color blocks, picture endpoints, and
-                    their stock status.
+                    Manage your existing color blocks, picture endpoints, and their stock status.
                   </p>
                 </div>
                 {typeof errors.colors === "string" && (
-                  <span className="text-xs font-medium text-red-500">
-                    {errors.colors}
-                  </span>
+                  <span className="text-xs font-medium text-red-500">{errors.colors}</span>
                 )}
               </div>
 
@@ -455,7 +447,7 @@ const UpdateProductForm = () => {
                           />
                         </div>
 
-                        {/* Variant Image File / URL Input - التعديل الجديد هنا للتعديل الذكي للصور */}
+                        {/* Variant Image File / URL Input */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
@@ -463,11 +455,9 @@ const UpdateProductForm = () => {
                                 <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
                                   {values.colors[index].image
-                                    ? typeof values.colors[index].image ===
-                                      "string"
+                                    ? typeof values.colors[index].image === "string"
                                       ? "Existing Image"
-                                      : values.colors[index].image.name ||
-                                        "Image Selected"
+                                      : values.colors[index].image.name || "Image Selected"
                                     : "Upload New Image"}
                                 </span>
                                 <input
@@ -476,26 +466,20 @@ const UpdateProductForm = () => {
                                   className="hidden"
                                   onChange={(event) => {
                                     const file = event.target.files?.[0];
-                                    setFieldValue(
-                                      `colors.${index}.image`,
-                                      file || null,
-                                    );
+                                    setFieldValue(`colors.${index}.image`, file || null);
                                   }}
                                 />
                               </label>
                             </div>
 
-                            {/* مربع معاينة الصور (Preview) بيشتغل مع روابط الـ DB أو الملفات المحلية */}
+                            {/* Image Preview Box */}
                             {values.colors[index].image && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
                                   src={
-                                    typeof values.colors[index].image ===
-                                    "string"
-                                      ? values.colors[index].image // لو لينك مخزن في الداتا بيز
-                                      : URL.createObjectURL(
-                                          values.colors[index].image,
-                                        ) // لو ملف لسه مرفوع
+                                    typeof values.colors[index].image === "string"
+                                      ? values.colors[index].image
+                                      : URL.createObjectURL(values.colors[index].image)
                                   }
                                   alt="Preview"
                                   className="w-full h-full object-cover"
@@ -541,9 +525,7 @@ const UpdateProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        push({ color: "", image: null, inStock: true })
-                      } // تعديل القيمة الابتدائية لـ null لتجنب مشاكل التحقق
+                      onClick={() => push({ color: "", image: null, inStock: true })}
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -562,8 +544,7 @@ const UpdateProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Updating
-                    Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
                   </>
                 ) : (
                   "Save Changes"
