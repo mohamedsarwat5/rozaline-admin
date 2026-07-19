@@ -103,57 +103,63 @@ const UpdateProductForm = () => {
   }, [id, navigate]);
 
   // دالة ضغط الصور السحرية الخفيفة على الموبايل واللاب توب (Canvas)
-  const compressImageForMobile = (file, maxWidth = 1000, quality = 0.75) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
+const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
+  return new Promise((resolve, reject) => {
+    // إنشاء رابط وهمي للملف بدون استهلاك 1% من الرام (بديل الـ FileReader الثقيل)
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = objectUrl;
 
-          if (width > height) {
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let width = img.width;
+      let height = img.height;
+
+      // حساب الأبعاد الجديدة
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxWidth) {
+          width = Math.round((width * maxWidth) / height);
+          height = maxWidth;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // تنظيف الذاكرة فوراً عشان الموبايل ميهنجش
+      URL.revokeObjectURL(objectUrl);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
           } else {
-            if (height > maxWidth) {
-              width = Math.round((width * maxWidth) / height);
-              height = maxWidth;
-            }
+            reject(new Error("Canvas conversion failed"));
           }
+        },
+        "image/jpeg",
+        quality
+      );
+    };
 
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                  type: "image/jpeg",
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                reject(new Error("Canvas conversion failed"));
-              }
-            },
-            "image/jpeg",
-            quality
-          );
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
-    });
-  };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
+  });
+};
 
   // 2. معالجة تحديث المنتج وإرسال البيانات (PUT)
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
