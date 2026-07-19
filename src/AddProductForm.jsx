@@ -40,7 +40,7 @@ const ProductValidationSchema = Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
         image: Yup.mixed().required("Image file is required"),
         inStock: Yup.boolean(),
-      })
+      }),
     )
     .min(1, "At least one color variant is required"),
   availableWeights: Yup.array().of(Yup.string()),
@@ -76,63 +76,67 @@ const AddProductForm = () => {
   };
 
   // دالة ضغط الصور السحرية الخفيفة على الموبايل واللاب توب (Canvas)
-const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
-  return new Promise((resolve, reject) => {
-    // إنشاء رابط وهمي للملف بدون استهلاك 1% من الرام (بديل الـ FileReader الثقيل)
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = objectUrl;
+  const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      // إنشاء رابط وهمي للملف بدون استهلاك 1% من الرام (بديل الـ FileReader الثقيل)
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = objectUrl;
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
 
-      // حساب الأبعاد الجديدة
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxWidth) {
-          width = Math.round((width * maxWidth) / height);
-          height = maxWidth;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // تنظيف الذاكرة فوراً عشان الموبايل ميهنجش
-      URL.revokeObjectURL(objectUrl);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          } else {
-            reject(new Error("Canvas conversion failed"));
+        // حساب الأبعاد الجديدة
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
           }
-        },
-        "image/jpeg",
-        quality
-      );
-    };
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
 
-    img.onerror = (err) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(err);
-    };
-  });
-};
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // تنظيف الذاكرة فوراً عشان الموبايل ميهنجش
+        URL.revokeObjectURL(objectUrl);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File(
+                [blob],
+                file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+                {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                },
+              );
+              resolve(compressedFile);
+            } else {
+              reject(new Error("Canvas conversion failed"));
+            }
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+
+      img.onerror = (err) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      };
+    });
+  };
 
   // معالجة إرسال الفورم وحفظ المنتج الجديد (POST)
   const handleAddSubmit = async (values, { setSubmitting }) => {
@@ -142,18 +146,23 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
         values.colors.map(async (colorItem) => {
           if (colorItem.image) {
             // ضغط فوري غصب عن الموبايل وبدون استهلاك رامات
-            const compressedFile = await compressImageForMobile(colorItem.image, 1000, 0.75);
+            const compressedFile = await compressImageForMobile(
+              colorItem.image,
+              1000,
+              0.75,
+            );
 
             const formData = new FormData();
             formData.append("file", compressedFile);
             formData.append(
               "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
+              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ||
+                "YOUR_UPLOAD_PRESET",
             );
 
             const cloudinaryResponse = await axios.post(
               `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
-              formData
+              formData,
             );
 
             return {
@@ -162,7 +171,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
             };
           }
           return colorItem;
-        })
+        }),
       );
 
       const finalValues = {
@@ -175,10 +184,10 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
       alert("Product added successfully!");
       navigate("/");
     } catch (error) {
-      console.error("Error adding product:", error);
+      console.error("Error details:", error);
+      // هيجيبلك الـ Error بالظبط جاي من Cloudinary ولا من سيرفرك ولا الـ Network وقعت
       alert(
-        error.response?.data?.message ||
-          "Something went wrong while adding the product."
+        `حدث خطأ: ${error.response?.data?.message || error.message || JSON.stringify(error)}`,
       );
     } finally {
       setSubmitting(false);
@@ -198,7 +207,8 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               Add New Product
             </h2>
             <p className="text-sm text-slate-400">
-              Fill in the details below to publish a new garment or set to your live catalog.
+              Fill in the details below to publish a new garment or set to your
+              live catalog.
             </p>
           </div>
         </div>
@@ -237,7 +247,11 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage name="name" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="name"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
               </div>
 
               {/* الفئة */}
@@ -254,7 +268,9 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 >
-                  <option value="" disabled hidden>Select a category</option>
+                  <option value="" disabled hidden>
+                    Select a category
+                  </option>
                   <option value="Sets">Sets</option>
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
@@ -262,23 +278,33 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                   <option value="Soirée">Soirée</option>
                   <option value="Dresses">Dresses</option>
                 </Field>
-                <ErrorMessage name="category" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="category"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
               </div>
 
               {/* الأوزان المتاحة */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">Available Weights</label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Weights
+                </label>
                 <FieldArray name="availableWeights">
                   {({ push, remove }) => (
                     <div className="grid grid-cols-1 gap-2">
                       {weightOptions.map((weight) => (
-                        <label key={weight} className="flex items-center gap-2 text-sm text-slate-700">
+                        <label
+                          key={weight}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
                           <input
                             type="checkbox"
                             checked={values.availableWeights.includes(weight)}
                             onChange={(e) => {
                               if (e.target.checked) push(weight);
-                              else remove(values.availableWeights.indexOf(weight));
+                              else
+                                remove(values.availableWeights.indexOf(weight));
                             }}
                             className="w-4 h-4"
                           />
@@ -292,18 +318,24 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
 
               {/* الأطوال المتاحة */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">Available Lengths</label>
+                <label className="text-sm font-semibold text-slate-700">
+                  Available Lengths
+                </label>
                 <FieldArray name="availableLengths">
                   {({ push, remove }) => (
                     <div className="grid grid-cols-2 gap-2">
                       {lengthOptions.map((length) => (
-                        <label key={length} className="flex items-center gap-2 text-sm text-slate-700">
+                        <label
+                          key={length}
+                          className="flex items-center gap-2 text-sm text-slate-700"
+                        >
                           <input
                             type="checkbox"
                             checked={values.availableLengths.includes(length)}
                             onChange={(e) => {
                               if (e.target.checked) push(length);
-                              else remove(values.availableLengths.indexOf(length));
+                              else
+                                remove(values.availableLengths.indexOf(length));
                             }}
                             className="w-4 h-4"
                           />
@@ -330,22 +362,36 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage name="price" component="span" className="text-xs font-medium text-red-500 mt-1" />
+                <ErrorMessage
+                  name="price"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
               </div>
 
               {/* لوحة الشارات والحالة */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
                 {/* Availability */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Availability</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Availability
+                  </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field type="checkbox" name="inStock" className="sr-only peer" />
+                    <Field
+                      type="checkbox"
+                      name="inStock"
+                      className="sr-only peer"
+                    />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.inStock ? (
-                        <span className="text-emerald-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> In Stock</span>
+                        <span className="text-emerald-600 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" /> In Stock
+                        </span>
                       ) : (
-                        <span className="text-amber-600 flex items-center gap-1"><XCircle className="w-4 h-4" /> Out of stock</span>
+                        <span className="text-amber-600 flex items-center gap-1">
+                          <XCircle className="w-4 h-4" /> Out of stock
+                        </span>
                       )}
                     </span>
                   </label>
@@ -353,13 +399,21 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
 
                 {/* New Arrival */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">New Arrival</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    New Arrival
+                  </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field type="checkbox" name="newArrival" className="sr-only peer" />
+                    <Field
+                      type="checkbox"
+                      name="newArrival"
+                      className="sr-only peer"
+                    />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.newArrival ? (
-                        <span className="text-indigo-600 flex items-center gap-1"><Sparkles className="w-4 h-4" /> Active</span>
+                        <span className="text-indigo-600 flex items-center gap-1">
+                          <Sparkles className="w-4 h-4" /> Active
+                        </span>
                       ) : (
                         <span className="text-slate-400">Inactive</span>
                       )}
@@ -369,13 +423,21 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
 
                 {/* Best Seller */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Seller</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Best Seller
+                  </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field type="checkbox" name="bestSeller" className="sr-only peer" />
+                    <Field
+                      type="checkbox"
+                      name="bestSeller"
+                      className="sr-only peer"
+                    />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.bestSeller ? (
-                        <span className="text-amber-500 flex items-center gap-1"><Flame className="w-4 h-4" /> Active</span>
+                        <span className="text-amber-500 flex items-center gap-1">
+                          <Flame className="w-4 h-4" /> Active
+                        </span>
                       ) : (
                         <span className="text-slate-400">Inactive</span>
                       )}
@@ -401,7 +463,11 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                     : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                 }`}
               />
-              <ErrorMessage name="description" component="span" className="text-xs font-medium text-red-500 mt-1" />
+              <ErrorMessage
+                name="description"
+                component="span"
+                className="text-xs font-medium text-red-500 mt-1"
+              />
             </div>
 
             <hr className="my-6 border-slate-100" />
@@ -410,11 +476,18 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
-                  <p className="text-xs text-slate-400">Add at least one color shade and upload its corresponding picture.</p>
+                  <h3 className="text-md font-bold text-slate-800">
+                    Color Variants
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Add at least one color shade and upload its corresponding
+                    picture.
+                  </p>
                 </div>
                 {typeof errors.colors === "string" && (
-                  <span className="text-xs font-medium text-red-500">{errors.colors}</span>
+                  <span className="text-xs font-medium text-red-500">
+                    {errors.colors}
+                  </span>
                 )}
               </div>
 
@@ -439,7 +512,11 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                               className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none text-sm"
                             />
                           </div>
-                          <ErrorMessage name={`colors.${index}.color`} component="span" className="text-xs font-medium text-red-500" />
+                          <ErrorMessage
+                            name={`colors.${index}.color`}
+                            component="span"
+                            className="text-xs font-medium text-red-500"
+                          />
                         </div>
 
                         {/* رفع الصورة للمتغير */}
@@ -449,7 +526,9 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                               <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors">
                                 <ImageIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
-                                  {values.colors[index].image ? values.colors[index].image.name : "Choose Image"}
+                                  {values.colors[index].image
+                                    ? values.colors[index].image.name
+                                    : "Choose Image"}
                                 </span>
                                 <input
                                   type="file"
@@ -457,7 +536,10 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                                   className="hidden"
                                   onChange={(event) => {
                                     const file = event.target.files?.[0];
-                                    setFieldValue(`colors.${index}.image`, file || null);
+                                    setFieldValue(
+                                      `colors.${index}.image`,
+                                      file || null,
+                                    );
                                   }}
                                 />
                               </label>
@@ -467,20 +549,30 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                             {values.colors[index].image && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
-                                  src={URL.createObjectURL(values.colors[index].image)}
+                                  src={URL.createObjectURL(
+                                    values.colors[index].image,
+                                  )}
                                   alt="Preview"
                                   className="w-full h-full object-cover"
                                 />
                               </div>
                             )}
                           </div>
-                          <ErrorMessage name={`colors.${index}.image`} component="span" className="text-xs font-medium text-red-500" />
+                          <ErrorMessage
+                            name={`colors.${index}.image`}
+                            component="span"
+                            className="text-xs font-medium text-red-500"
+                          />
                         </div>
 
                         {/* حالة التوفر للون */}
                         <div className="flex items-center gap-2 min-w-[120px] pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
-                            <Field type="checkbox" name={`colors.${index}.inStock`} className="sr-only peer" />
+                            <Field
+                              type="checkbox"
+                              name={`colors.${index}.inStock`}
+                              className="sr-only peer"
+                            />
                             <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                             <span className="ms-2 text-xs font-medium text-slate-600">
                               {colorItem.inStock ? "In Stock" : "OOS"}
@@ -503,7 +595,9 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: null, inStock: true })}
+                      onClick={() =>
+                        push({ color: "", image: null, inStock: true })
+                      }
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -522,7 +616,8 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Publishing Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Publishing
+                    Product...
                   </>
                 ) : (
                   "Publish Product"
