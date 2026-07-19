@@ -75,37 +75,30 @@ const AddProductForm = () => {
     colors: [{ color: "", image: null, inStock: true }],
   };
 
-  const handleAddSubmit = async (values, { setSubmitting }) => {
+ const handleAddSubmit = async (values, { setSubmitting }) => {
     try {
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
           if (colorItem.image instanceof File) {
-            // إعدادات ضغط الصورة للموبايل لتقليل الحجم دون خسارة الجودة
+            // إعدادات ضغط صارمة ومناسبة جداً للموبايل لتجنب استهلاك الرام تماماً
             const options = {
-              maxSizeMB: 1, // أقصى حجم للصورة 1 ميجابايت
-              maxWidthOrHeight: 1024, // أقصى أبعاد 1024 بكسل
-              useWebWorker: true, // تشغيل الضغط في الخلفية لمنع تهنيج المتصفح
-              fileType: "image/jpeg",
+              maxSizeMB: 0.2,          // تقليل الحد الأقصى للحجم إلى 200 كيلوبايت فقط
+              maxWidthOrHeight: 800,   // تقليل الأبعاد إلى 800 بكسل (ممتازة لشاشات الموبايل والمواقع)
+              useWebWorker: true,      // تشغيل الضغط في الخلفية
+              fileType: "image/jpeg"
             };
 
             // ضغط الصورة باستخدام المكتبة
-            const compressedBlob = await imageCompression(
-              colorItem.image,
-              options,
-            );
-            const compressedFile = new File(
-              [compressedBlob],
-              colorItem.image.name,
-              {
-                type: "image/jpeg",
-              },
-            );
+            const compressedBlob = await imageCompression(colorItem.image, options);
+            const compressedFile = new File([compressedBlob], colorItem.image.name, {
+              type: "image/jpeg",
+            });
 
             const formData = new FormData();
             formData.append("file", compressedFile);
             formData.append(
               "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
             );
 
             // رفع الصورة المضغوطة إلى Cloudinary
@@ -134,8 +127,14 @@ const AddProductForm = () => {
       navigate("/");
     } catch (error) {
       console.error("Submission error details:", error);
+
+      // تحويل كائن الخطأ إلى نص بالكامل لإظهاره في الـ Alert على الموبايل ومعرفة التفاصيل
+      const detailedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
+
       alert(
-        `حدث خطأ أثناء الرفع: ${error.response?.data?.message || error.message || "فشلت العملية"}`,
+        `حدث خطأ أثناء الرفع.\n\n` +
+        `الرسالة: ${error.message || "لا توجد رسالة"}\n\n` +
+        `تفاصيل تقنية: ${detailedError}`
       );
     } finally {
       setSubmitting(false);
