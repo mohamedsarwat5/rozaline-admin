@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import axios from "axios" // أو مكتبة axios الخاصة بك
-import axiosInstance from "axios"; // يعتمد على الـ Instance المحلية الخاصة بك
+import axios from "axios";
+import axiosInstance from "axios";
 import {
   Package,
   FileText,
@@ -38,7 +38,7 @@ const ProductValidationSchema = Yup.object().shape({
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
-        image: Yup.mixed().required("Image file or URL is required"),
+        image: Yup.mixed().required("Image is required"),
         inStock: Yup.boolean(),
       })
     )
@@ -48,8 +48,10 @@ const ProductValidationSchema = Yup.object().shape({
 });
 
 const UpdateProductForm = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // جلب معرف المنتج من الرابط
   const navigate = useNavigate();
+  const [productData, setProductData] = useState(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
 
   const weightOptions = [
     "one size",
@@ -62,114 +64,87 @@ const UpdateProductForm = () => {
 
   const lengthOptions = ["100", "105", "110", "150"];
 
-  const [initialValues, setInitialValues] = useState(null);
-  const [loadingProduct, setLoadingProduct] = useState(true);
-
-  // 1. جلب بيانات المنتج الحالية عند تحميل المكون
+  // جلب بيانات المنتج الحالية عند فتح الصفحة
   useEffect(() => {
-    const fetchProductDetails = async () => {
+    const fetchProduct = async () => {
       try {
-        const { data } = await axiosInstance.get(`${baseUrl}/products/${id}`);
-
-        setInitialValues({
-          name: data.name || "",
-          description: data.description || "",
-          category: data.category || "",
-          price: data.price || "",
-          inStock: data.inStock ?? true,
-          newArrival: data.newArrival ?? false,
-          bestSeller: data.bestSeller ?? false,
-          availableWeights: data.availableWeights || [],
-          availableLengths: data.availableLengths || [],
-          colors:
-            data.colors && data.colors.length > 0
-              ? data.colors.map((c) => ({
-                  color: c.color || "",
-                  image: c.image || "",
-                  inStock: c.inStock ?? true,
-                }))
-              : [{ color: "", image: null, inStock: true }],
-        });
+        const response = await axiosInstance.get(`${baseUrl}/products/${id}`);
+        setProductData(response.data);
       } catch (error) {
-        console.error("Error fetching product details:", error);
-        alert("Failed to load product details. Returning to dashboard.");
+        console.error("Error fetching product:", error);
+        alert("Failed to load product data.");
         navigate(-1);
       } finally {
         setLoadingProduct(false);
       }
     };
-
-    fetchProductDetails();
+    fetchProduct();
   }, [id, navigate]);
 
-  // دالة ضغط الصور السحرية الخفيفة على الموبايل واللاب توب (Canvas)
-const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
-  return new Promise((resolve, reject) => {
-    // إنشاء رابط وهمي للملف بدون استهلاك 1% من الرام (بديل الـ FileReader الثقيل)
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = objectUrl;
+  // دالة ضغط الصور الخفيفة (Canvas)
+  const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = objectUrl;
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
 
-      // حساب الأبعاد الجديدة
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxWidth) {
-          width = Math.round((width * maxWidth) / height);
-          height = maxWidth;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // تنظيف الذاكرة فوراً عشان الموبايل ميهنجش
-      URL.revokeObjectURL(objectUrl);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          } else {
-            reject(new Error("Canvas conversion failed"));
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
           }
-        },
-        "image/jpeg",
-        quality
-      );
-    };
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
 
-    img.onerror = (err) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(err);
-    };
-  });
-};
+        canvas.width = width;
+        canvas.height = height;
 
-  // 2. معالجة تحديث المنتج وإرسال البيانات (PUT)
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        URL.revokeObjectURL(objectUrl);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error("Canvas conversion failed"));
+            }
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+
+      img.onerror = (err) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      };
+    });
+  };
+
+  // معالجة تحديث بيانات المنتج (PUT)
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      // رفع الصور الجديدة فقط إذا قام المستخدم باختيار ملف جديد
+      // رفع الصور الجديدة فقط إلى Cloudinary والحفاظ على الروابط القديمة
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
-          // لو الـ image عبارة عن File object (يعني المستخدم اختار صورة جديدة ومش جاي من الداتابيز كـ string)
-          if (colorItem.image && typeof colorItem.image !== "string") {
-            // تنفيذ الضغط الفوري الخفيف المناسب للموبايل
+          // إذا كانت الصورة عبارة عن File (يعني تم اختيار صورة جديدة)
+          if (colorItem.image instanceof File) {
             const compressedFile = await compressImageForMobile(colorItem.image, 1000, 0.75);
 
             const formData = new FormData();
@@ -189,7 +164,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               image: cloudinaryResponse.data.secure_url,
             };
           }
-          // لو هي رابط قديم سيبها زي ما هي
+          // إذا كانت الرابط نصي قديم (String) نتركها كما هي
           return colorItem;
         })
       );
@@ -199,7 +174,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
         colors: uploadedColors,
       };
 
-      // طلب PUT لتعديل المنتج الحالي
+      // طلب PUT لتحديث بيانات المنتج
       await axiosInstance.put(`${baseUrl}/products/${id}`, finalValues);
       alert("Product updated successfully!");
       navigate("/");
@@ -216,9 +191,9 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
 
   if (loadingProduct) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-        <span className="text-sm font-medium">Fetching product data...</span>
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+        <p className="text-sm font-medium text-slate-500">Loading product details...</p>
       </div>
     );
   }
@@ -236,7 +211,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               Update Product
             </h2>
             <p className="text-sm text-slate-400">
-              Modify the fields below to patch your live product metadata.
+              Modify the existing product parameters and variations.
             </p>
           </div>
         </div>
@@ -252,7 +227,18 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
       </div>
 
       <Formik
-        initialValues={initialValues}
+        initialValues={{
+          name: productData?.name || "",
+          description: productData?.description || "",
+          category: productData?.category || "",
+          price: productData?.price || "",
+          inStock: productData?.inStock ?? true,
+          newArrival: productData?.newArrival ?? false,
+          bestSeller: productData?.bestSeller ?? false,
+          availableWeights: productData?.availableWeights || [],
+          availableLengths: productData?.availableLengths || [],
+          colors: productData?.colors || [{ color: "", image: null, inStock: true }],
+        }}
         validationSchema={ProductValidationSchema}
         onSubmit={handleUpdateSubmit}
         enableReinitialize={true}
@@ -269,7 +255,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                 <Field
                   name="name"
                   type="text"
-                  placeholder="e.g. Wireless Ergonomic Mouse"
+                  placeholder="e.g. Elegant Evening Dress"
                   className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                     errors.name && touched.name
                       ? "border-red-400 focus:ring-red-200"
@@ -372,7 +358,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                 <ErrorMessage name="price" component="span" className="text-xs font-medium text-red-500 mt-1" />
               </div>
 
-              {/* لوحة التحكم بالحالات والشارات */}
+              {/* لوحة الشارات والحالات */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
                 {/* Availability */}
                 <div className="flex flex-col gap-2">
@@ -433,7 +419,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                 name="description"
                 as="textarea"
                 rows="4"
-                placeholder="Write a product description..."
+                placeholder="Write a comprehensive description here..."
                 className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                   errors.description && touched.description
                     ? "border-red-400 focus:ring-red-200"
@@ -450,7 +436,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
-                  <p className="text-xs text-slate-400">Manage your existing color blocks, picture endpoints, and their stock status.</p>
+                  <p className="text-xs text-slate-400">Modify variants, upload new images or keep existing ones.</p>
                 </div>
                 {typeof errors.colors === "string" && (
                   <span className="text-xs font-medium text-red-500">{errors.colors}</span>
@@ -474,7 +460,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                             <Field
                               name={`colors.${index}.color`}
                               type="text"
-                              placeholder="Color name"
+                              placeholder="Color name (e.g. Royal Blue)"
                               className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none text-sm"
                             />
                           </div>
@@ -489,9 +475,9 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                                 <ImageIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
                                   {values.colors[index].image
-                                    ? typeof values.colors[index].image === "string"
-                                      ? "Existing Image"
-                                      : values.colors[index].image.name
+                                    ? (values.colors[index].image instanceof File
+                                        ? values.colors[index].image.name
+                                        : "Keep Existing Image")
                                     : "Choose Image"}
                                 </span>
                                 <input
@@ -506,14 +492,14 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                               </label>
                             </div>
 
-                            {/* معاينة */}
+                            {/* معاينة الصورة الحالية أو الجديدة */}
                             {values.colors[index].image && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
                                   src={
-                                    typeof values.colors[index].image === "string"
-                                      ? values.colors[index].image
-                                      : URL.createObjectURL(values.colors[index].image)
+                                    values.colors[index].image instanceof File
+                                      ? URL.createObjectURL(values.colors[index].image)
+                                      : values.colors[index].image
                                   }
                                   alt="Preview"
                                   className="w-full h-full object-cover"
@@ -560,7 +546,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
               </FieldArray>
             </div>
 
-            {/* زر حفظ التغييرات */}
+            {/* زر حفظ التعديلات */}
             <div className="pt-4">
               <button
                 type="submit"
@@ -572,7 +558,7 @@ const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
                     <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
                   </>
                 ) : (
-                  "Save Changes"
+                  "Update Product Details"
                 )}
               </button>
             </div>
