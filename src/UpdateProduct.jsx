@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
-import axiosInstance from "axios";
 import {
   Package,
   FileText,
@@ -12,7 +11,6 @@ import {
   CheckCircle,
   XCircle,
   Palette,
-  Image as ImageIcon,
   Plus,
   Trash2,
   Loader2,
@@ -48,7 +46,7 @@ const ProductValidationSchema = Yup.object().shape({
 });
 
 const UpdateProductForm = () => {
-  const { id } = useParams(); // جلب معرف المنتج من الرابط
+  const { id } = useParams();
   const navigate = useNavigate();
   const [productData, setProductData] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
@@ -64,12 +62,20 @@ const UpdateProductForm = () => {
 
   const lengthOptions = ["100", "105", "110", "150"];
 
-  // جلب بيانات المنتج الحالية عند فتح الصفحة
+  // جلب بيانات المنتج عند فتح الصفحة عبر axios المباشر لضمان عدم تعطل المسار
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await axiosInstance.get(`${baseUrl}/products/${id}`);
-        setProductData(response.data);
+        const response = await axios.get(`${baseUrl}/products/${id}`);
+        const enrichedColors = response.data.colors?.map(c => ({
+          ...c,
+          isCompressing: false
+        })) || [];
+
+        setProductData({
+          ...response.data,
+          colors: enrichedColors
+        });
       } catch (error) {
         console.error("Error fetching product:", error);
         alert("Failed to load product data.");
@@ -81,8 +87,8 @@ const UpdateProductForm = () => {
     fetchProduct();
   }, [id, navigate]);
 
-  // دالة ضغط الصور الخفيفة (Canvas)
-  const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
+  // دالة ضغط الصور الآمنة للموبايل (Canvas)
+  const compressImageForMobile = (file, maxWidth = 1200, quality = 0.75) => {
     return new Promise((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
       const img = new Image();
@@ -139,16 +145,19 @@ const UpdateProductForm = () => {
 
   // معالجة تحديث بيانات المنتج (PUT)
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
+    const checkingCompression = values.colors.some(c => c.isCompressing);
+    if (checkingCompression) {
+      alert("Please wait until image compression is finished.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      // رفع الصور الجديدة فقط إلى Cloudinary والحفاظ على الروابط القديمة
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
-          // إذا كانت الصورة عبارة عن File (يعني تم اختيار صورة جديدة)
           if (colorItem.image instanceof File) {
-            const compressedFile = await compressImageForMobile(colorItem.image, 1000, 0.75);
-
             const formData = new FormData();
-            formData.append("file", compressedFile);
+            formData.append("file", colorItem.image);
             formData.append(
               "upload_preset",
               import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
@@ -160,22 +169,28 @@ const UpdateProductForm = () => {
             );
 
             return {
-              ...colorItem,
+              color: colorItem.color,
+              inStock: colorItem.inStock,
               image: cloudinaryResponse.data.secure_url,
             };
           }
-          // إذا كانت الرابط نصي قديم (String) نتركها كما هي
-          return colorItem;
+
+          return {
+            color: colorItem.color,
+            inStock: colorItem.inStock,
+            image: colorItem.image
+          };
         })
       );
 
+      const finalColors = uploadedColors.map(({ color, image, inStock }) => ({ color, image, inStock }));
+
       const finalValues = {
         ...values,
-        colors: uploadedColors,
+        colors: finalColors,
       };
 
-      // طلب PUT لتحديث بيانات المنتج
-      await axiosInstance.put(`${baseUrl}/products/${id}`, finalValues);
+      await axios.put(`${baseUrl}/products/${id}`, finalValues);
       alert("Product updated successfully!");
       navigate("/");
     } catch (error) {
@@ -237,7 +252,7 @@ const UpdateProductForm = () => {
           bestSeller: productData?.bestSeller ?? false,
           availableWeights: productData?.availableWeights || [],
           availableLengths: productData?.availableLengths || [],
-          colors: productData?.colors || [{ color: "", image: null, inStock: true }],
+          colors: productData?.colors || [{ color: "", image: null, inStock: true, isCompressing: false }],
         }}
         validationSchema={ProductValidationSchema}
         onSubmit={handleUpdateSubmit}
@@ -360,7 +375,6 @@ const UpdateProductForm = () => {
 
               {/* لوحة الشارات والحالات */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
-                {/* Availability */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Availability</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
@@ -376,7 +390,6 @@ const UpdateProductForm = () => {
                   </label>
                 </div>
 
-                {/* New Arrival */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">New Arrival</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
@@ -392,7 +405,6 @@ const UpdateProductForm = () => {
                   </label>
                 </div>
 
-                {/* Best Seller */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Seller</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
@@ -471,29 +483,47 @@ const UpdateProductForm = () => {
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
-                              <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors">
-                                <ImageIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                              <label className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors ${values.colors[index].isCompressing ? "opacity-60 pointer-events-none bg-slate-50" : ""}`}>
+                                {values.colors[index].isCompressing ? (
+                                  <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
+                                ) : (
+                                  <Package className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                )}
                                 <span className="truncate max-w-[180px]">
-                                  {values.colors[index].image
-                                    ? (values.colors[index].image instanceof File
+                                  {values.colors[index].isCompressing
+                                    ? "Compressing HD..."
+                                    : values.colors[index].image
+                                      ? (values.colors[index].image instanceof File
                                         ? values.colors[index].image.name
                                         : "Keep Existing Image")
-                                    : "Choose Image"}
+                                      : "Choose Image"}
                                 </span>
                                 <input
                                   type="file"
                                   accept="image/*"
                                   className="hidden"
-                                  onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    setFieldValue(`colors.${index}.image`, file || null);
+                                  disabled={values.colors[index].isCompressing || isSubmitting}
+                                  onChange={async (event) => {
+                                    const file = event.currentTarget.files?.[0];
+                                    if (file) {
+                                      try {
+                                        setFieldValue(`colors.${index}.isCompressing`, true);
+                                        const compressedFile = await compressImageForMobile(file, 1200, 0.75);
+                                        setFieldValue(`colors.${index}.image`, compressedFile);
+                                        setFieldValue(`colors.${index}.isCompressing`, false);
+                                      } catch (compressError) {
+                                        console.error("Compression failed:", compressError);
+                                        setFieldValue(`colors.${index}.image`, file);
+                                        setFieldValue(`colors.${index}.isCompressing`, false);
+                                      }
+                                    }
                                   }}
                                 />
                               </label>
                             </div>
 
-                            {/* معاينة الصورة الحالية أو الجديدة */}
-                            {values.colors[index].image && (
+                            {/* معاينة الصورة */}
+                            {values.colors[index].image && !values.colors[index].isCompressing && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
                                   src={
@@ -510,7 +540,7 @@ const UpdateProductForm = () => {
                           <ErrorMessage name={`colors.${index}.image`} component="span" className="text-xs font-medium text-red-500" />
                         </div>
 
-                        {/* حالة التوفر للون */}
+                        {/* حالة التوفر */}
                         <div className="flex items-center gap-2 min-w-[120px] pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
                             <Field type="checkbox" name={`colors.${index}.inStock`} className="sr-only peer" />
@@ -536,7 +566,7 @@ const UpdateProductForm = () => {
 
                     <button
                       type="button"
-                      onClick={() => push({ color: "", image: null, inStock: true })}
+                      onClick={() => push({ color: "", image: null, inStock: true, isCompressing: false })}
                       className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
                     >
                       <Plus className="w-4 h-4" /> Add Color Variant
@@ -550,13 +580,15 @@ const UpdateProductForm = () => {
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || values.colors.some(c => c.isCompressing)}
                 className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
                   </>
+                ) : values.colors.some(c => c.isCompressing) ? (
+                  "Compressing Images..."
                 ) : (
                   "Update Product Details"
                 )}
