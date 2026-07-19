@@ -76,70 +76,47 @@ const AddProductForm = () => {
   };
 
  const handleAddSubmit = async (values, { setSubmitting }) => {
-    try {
-      const uploadedColors = await Promise.all(
-        values.colors.map(async (colorItem) => {
-          if (colorItem.image instanceof File) {
-            // إعدادات ضغط صارمة ومناسبة جداً للموبايل لتجنب استهلاك الرام تماماً
-            const options = {
-              maxSizeMB: 0.2,          // تقليل الحد الأقصى للحجم إلى 200 كيلوبايت فقط
-              maxWidthOrHeight: 800,   // تقليل الأبعاد إلى 800 بكسل (ممتازة لشاشات الموبايل والمواقع)
-              useWebWorker: true,      // تشغيل الضغط في الخلفية
-              fileType: "image/jpeg"
-            };
+  try {
+    const uploadedColors = await Promise.all(
+      values.colors.map(async (colorItem) => {
+        if (colorItem.image instanceof File) {
+          const formData = new FormData();
+          // الصورة هنا مضغوطة وجاهزة تماماً من خطوة الاختيار
+          formData.append("file", colorItem.image);
+          formData.append(
+            "upload_preset",
+            import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+          );
 
-            // ضغط الصورة باستخدام المكتبة
-            const compressedBlob = await imageCompression(colorItem.image, options);
-            const compressedFile = new File([compressedBlob], colorItem.image.name, {
-              type: "image/jpeg",
-            });
+          const cloudinaryResponse = await axios.post(
+            `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+            formData,
+          );
 
-            const formData = new FormData();
-            formData.append("file", compressedFile);
-            formData.append(
-              "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-            );
+          return {
+            ...colorItem,
+            image: cloudinaryResponse.data.secure_url,
+          };
+        }
+        return colorItem;
+      }),
+    );
 
-            // رفع الصورة المضغوطة إلى Cloudinary
-            const cloudinaryResponse = await axios.post(
-              `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
-              formData,
-            );
+    const finalValues = {
+      ...values,
+      colors: uploadedColors,
+    };
 
-            return {
-              ...colorItem,
-              image: cloudinaryResponse.data.secure_url,
-            };
-          }
-          return colorItem;
-        }),
-      );
-
-      const finalValues = {
-        ...values,
-        colors: uploadedColors,
-      };
-
-      // إرسال البيانات النهائية للسيرفر الخاص بك
-      await axios.post(`${baseUrl}/products`, finalValues);
-      alert("Product added successfully!");
-      navigate("/");
-    } catch (error) {
-      console.error("Submission error details:", error);
-
-      // تحويل كائن الخطأ إلى نص بالكامل لإظهاره في الـ Alert على الموبايل ومعرفة التفاصيل
-      const detailedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
-
-      alert(
-        `حدث خطأ أثناء الرفع.\n\n` +
-        `الرسالة: ${error.message || "لا توجد رسالة"}\n\n` +
-        `تفاصيل تقنية: ${detailedError}`
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    await axios.post(`${baseUrl}/products`, finalValues);
+    alert("Product added successfully!");
+    navigate("/");
+  } catch (error) {
+    console.error("Submission error details:", error);
+    alert("حدث خطأ أثناء الرفع، يرجى مراجعة تفاصيل الاتصال.");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="max-w-4xl mx-auto my-10 p-8 bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
@@ -483,18 +460,40 @@ const AddProductForm = () => {
                                     ? values.colors[index].image.name
                                     : "Choose Image"}
                                 </span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    setFieldValue(
-                                      `colors.${index}.image`,
-                                      file || null,
-                                    );
-                                  }}
-                                />
+                               <input
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={async (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        // إعدادات الضغط الفوري
+        const options = {
+          maxSizeMB: 0.2,
+          maxWidthOrHeight: 800,
+          useWebWorker: true,
+          fileType: "image/jpeg"
+        };
+
+        // الضغط فوراً أثناء اختيار الملف وقبل الضغط على زر الـ Submit
+        const compressedBlob = await imageCompression(file, options);
+        const compressedFile = new File([compressedBlob], file.name, {
+          type: "image/jpeg",
+        });
+
+        // حفظ الصورة المضغوطة مباشرة في الـ Formik State
+        setFieldValue(`colors.${index}.image`, compressedFile);
+      } catch (compressError) {
+        console.error("Compression error:", compressError);
+        // في حال فشل الضغط لأي سبب، نحتفظ بالأصل كخطة بديلة
+        setFieldValue(`colors.${index}.image`, file);
+      }
+    } else {
+      setFieldValue(`colors.${index}.image`, null);
+    }
+  }}
+/>
                               </label>
                             </div>
 
