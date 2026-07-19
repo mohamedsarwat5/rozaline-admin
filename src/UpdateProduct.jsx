@@ -2,9 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import axios from "axios";
+import axios from "axios" // أو مكتبة axios الخاصة بك
 import axiosInstance from "axios"; // يعتمد على الـ Instance المحلية الخاصة بك
-import imageCompression from "browser-image-compression";
 import {
   Package,
   FileText,
@@ -49,6 +48,9 @@ const ProductValidationSchema = Yup.object().shape({
 });
 
 const UpdateProductForm = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const weightOptions = [
     "one size",
     "50-80 kg",
@@ -59,9 +61,6 @@ const UpdateProductForm = () => {
   ];
 
   const lengthOptions = ["100", "105", "110", "150"];
-
-  const { id } = useParams();
-  const navigate = useNavigate();
 
   const [initialValues, setInitialValues] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
@@ -94,7 +93,7 @@ const UpdateProductForm = () => {
       } catch (error) {
         console.error("Error fetching product details:", error);
         alert("Failed to load product details. Returning to dashboard.");
-        navigate("/admin/products");
+        navigate(-1);
       } finally {
         setLoadingProduct(false);
       }
@@ -103,32 +102,72 @@ const UpdateProductForm = () => {
     fetchProductDetails();
   }, [id, navigate]);
 
-  // 2. معالجة تحديث المنتج وإرسال البيانات مع ضغط الصور
+  // دالة ضغط الصور السحرية الخفيفة على الموبايل واللاب توب (Canvas)
+  const compressImageForMobile = (file, maxWidth = 1000, quality = 0.75) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxWidth) {
+              width = Math.round((width * maxWidth) / height);
+              height = maxWidth;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error("Canvas conversion failed"));
+              }
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
+  // 2. معالجة تحديث المنتج وإرسال البيانات (PUT)
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      // إعدادات ضغط الصورة (بحد أقصى 1 ميجا وجودة متوازنة لسرعة الرفع والتحميل)
-      const compressionOptions = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
-        fileType: "image/jpeg",
-      };
-
-      // رفع الصور الجديدة فقط إلى Cloudinary إذا تم تعديلها وضغطها قبل الرفع
+      // رفع الصور الجديدة فقط إذا قام المستخدم باختيار ملف جديد
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
+          // لو الـ image عبارة عن File object (يعني المستخدم اختار صورة جديدة ومش جاي من الداتابيز كـ string)
           if (colorItem.image && typeof colorItem.image !== "string") {
-            let fileToUpload = colorItem.image;
-
-            try {
-              // تنفيذ عملية الضغط قبل الرفع مباشرة
-              fileToUpload = await imageCompression(colorItem.image, compressionOptions);
-            } catch (compressionError) {
-              console.error("Compression failed, uploading original file:", compressionError);
-            }
+            // تنفيذ الضغط الفوري الخفيف المناسب للموبايل
+            const compressedFile = await compressImageForMobile(colorItem.image, 1000, 0.75);
 
             const formData = new FormData();
-            formData.append("file", fileToUpload);
+            formData.append("file", compressedFile);
             formData.append(
               "upload_preset",
               import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
@@ -144,6 +183,7 @@ const UpdateProductForm = () => {
               image: cloudinaryResponse.data.secure_url,
             };
           }
+          // لو هي رابط قديم سيبها زي ما هي
           return colorItem;
         })
       );
@@ -153,6 +193,7 @@ const UpdateProductForm = () => {
         colors: uploadedColors,
       };
 
+      // طلب PUT لتعديل المنتج الحالي
       await axiosInstance.put(`${baseUrl}/products/${id}`, finalValues);
       alert("Product updated successfully!");
       navigate("/");
@@ -160,7 +201,7 @@ const UpdateProductForm = () => {
       console.error("Error updating product:", error);
       alert(
         error.response?.data?.message ||
-          "Something went wrong while updating. Please try again."
+          "Something went wrong while updating the product."
       );
     } finally {
       setSubmitting(false);
@@ -195,6 +236,7 @@ const UpdateProductForm = () => {
         </div>
 
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
         >
@@ -228,11 +270,7 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage
-                  name="name"
-                  component="span"
-                  className="text-xs font-medium text-red-500 mt-1"
-                />
+                <ErrorMessage name="name" component="span" className="text-xs font-medium text-red-500 mt-1" />
               </div>
 
               {/* الفئة */}
@@ -249,9 +287,7 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 >
-                  <option value="" disabled hidden>
-                    Select a category
-                  </option>
+                  <option value="" disabled hidden>Select a category</option>
                   <option value="Sets">Sets</option>
                   <option value="Skirts">Skirts</option>
                   <option value="Blouses">Blouses</option>
@@ -259,36 +295,23 @@ const UpdateProductForm = () => {
                   <option value="Soirée">Soirée</option>
                   <option value="Dresses">Dresses</option>
                 </Field>
-                <ErrorMessage
-                  name="category"
-                  component="span"
-                  className="text-xs font-medium text-red-500 mt-1"
-                />
+                <ErrorMessage name="category" component="span" className="text-xs font-medium text-red-500 mt-1" />
               </div>
 
               {/* الأوزان المتاحة */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Available Weights
-                </label>
-
+                <label className="text-sm font-semibold text-slate-700">Available Weights</label>
                 <FieldArray name="availableWeights">
                   {({ push, remove }) => (
                     <div className="grid grid-cols-1 gap-2">
                       {weightOptions.map((weight) => (
-                        <label
-                          key={weight}
-                          className="flex items-center gap-2 text-sm text-slate-700"
-                        >
+                        <label key={weight} className="flex items-center gap-2 text-sm text-slate-700">
                           <input
                             type="checkbox"
                             checked={values.availableWeights.includes(weight)}
                             onChange={(e) => {
-                              if (e.target.checked) {
-                                push(weight);
-                              } else {
-                                remove(values.availableWeights.indexOf(weight));
-                              }
+                              if (e.target.checked) push(weight);
+                              else remove(values.availableWeights.indexOf(weight));
                             }}
                             className="w-4 h-4"
                           />
@@ -298,37 +321,22 @@ const UpdateProductForm = () => {
                     </div>
                   )}
                 </FieldArray>
-
-                <ErrorMessage
-                  name="availableWeights"
-                  component="span"
-                  className="text-xs text-red-500"
-                />
               </div>
 
               {/* الأطوال المتاحة */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  Available Lengths
-                </label>
-
+                <label className="text-sm font-semibold text-slate-700">Available Lengths</label>
                 <FieldArray name="availableLengths">
                   {({ push, remove }) => (
                     <div className="grid grid-cols-2 gap-2">
                       {lengthOptions.map((length) => (
-                        <label
-                          key={length}
-                          className="flex items-center gap-2 text-sm text-slate-700"
-                        >
+                        <label key={length} className="flex items-center gap-2 text-sm text-slate-700">
                           <input
                             type="checkbox"
                             checked={values.availableLengths.includes(length)}
                             onChange={(e) => {
-                              if (e.target.checked) {
-                                push(length);
-                              } else {
-                                remove(values.availableLengths.indexOf(length));
-                              }
+                              if (e.target.checked) push(length);
+                              else remove(values.availableLengths.indexOf(length));
                             }}
                             className="w-4 h-4"
                           />
@@ -338,12 +346,6 @@ const UpdateProductForm = () => {
                     </div>
                   )}
                 </FieldArray>
-
-                <ErrorMessage
-                  name="availableLengths"
-                  component="span"
-                  className="text-xs text-red-500"
-                />
               </div>
 
               {/* السعر */}
@@ -354,7 +356,6 @@ const UpdateProductForm = () => {
                 <Field
                   name="price"
                   type="number"
-                  step="0.01"
                   placeholder="0.00"
                   className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                     errors.price && touched.price
@@ -362,50 +363,36 @@ const UpdateProductForm = () => {
                       : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                   }`}
                 />
-                <ErrorMessage
-                  name="price"
-                  component="span"
-                  className="text-xs font-medium text-red-500 mt-1"
-                />
+                <ErrorMessage name="price" component="span" className="text-xs font-medium text-red-500 mt-1" />
               </div>
 
               {/* لوحة التحكم بالحالات والشارات */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
-                {/* حالة التوفر في المخزن */}
+                {/* Availability */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Availability
-                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Availability</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
                     <Field type="checkbox" name="inStock" className="sr-only peer" />
-                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.inStock ? (
-                        <span className="text-emerald-600 flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" /> In Stock
-                        </span>
+                        <span className="text-emerald-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> In Stock</span>
                       ) : (
-                        <span className="text-amber-600 flex items-center gap-1">
-                          <XCircle className="w-4 h-4" /> Sold out
-                        </span>
+                        <span className="text-amber-600 flex items-center gap-1"><XCircle className="w-4 h-4" /> Out of stock</span>
                       )}
                     </span>
                   </label>
                 </div>
 
-                {/* تشغيل/إيقاف New Arrival */}
+                {/* New Arrival */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    New Arrival
-                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">New Arrival</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
                     <Field type="checkbox" name="newArrival" className="sr-only peer" />
-                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.newArrival ? (
-                        <span className="text-indigo-600 flex items-center gap-1">
-                          <Sparkles className="w-4 h-4" /> Active
-                        </span>
+                        <span className="text-indigo-600 flex items-center gap-1"><Sparkles className="w-4 h-4" /> Active</span>
                       ) : (
                         <span className="text-slate-400">Inactive</span>
                       )}
@@ -413,19 +400,15 @@ const UpdateProductForm = () => {
                   </label>
                 </div>
 
-                {/* تشغيل/إيقاف Best Seller */}
+                {/* Best Seller */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Best Seller
-                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Seller</span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
                     <Field type="checkbox" name="bestSeller" className="sr-only peer" />
-                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                     <span className="ms-3 text-sm font-semibold text-slate-700">
                       {values.bestSeller ? (
-                        <span className="text-amber-500 flex items-center gap-1">
-                          <Flame className="w-4 h-4" /> Active
-                        </span>
+                        <span className="text-amber-500 flex items-center gap-1"><Flame className="w-4 h-4" /> Active</span>
                       ) : (
                         <span className="text-slate-400">Inactive</span>
                       )}
@@ -444,18 +427,14 @@ const UpdateProductForm = () => {
                 name="description"
                 as="textarea"
                 rows="4"
-                placeholder="Write a compelling product description..."
+                placeholder="Write a product description..."
                 className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
                   errors.description && touched.description
                     ? "border-red-400 focus:ring-red-200"
                     : "border-slate-200 focus:ring-indigo-100 focus:border-indigo-500"
                 }`}
               />
-              <ErrorMessage
-                name="description"
-                component="span"
-                className="text-xs font-medium text-red-500 mt-1"
-              />
+              <ErrorMessage name="description" component="span" className="text-xs font-medium text-red-500 mt-1" />
             </div>
 
             <hr className="my-6 border-slate-100" />
@@ -465,9 +444,7 @@ const UpdateProductForm = () => {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-md font-bold text-slate-800">Color Variants</h3>
-                  <p className="text-xs text-slate-400">
-                    Manage your existing color blocks, picture endpoints, and their stock status.
-                  </p>
+                  <p className="text-xs text-slate-400">Manage your existing color blocks, picture endpoints, and their stock status.</p>
                 </div>
                 {typeof errors.colors === "string" && (
                   <span className="text-xs font-medium text-red-500">{errors.colors}</span>
@@ -480,9 +457,9 @@ const UpdateProductForm = () => {
                     {values.colors.map((colorItem, index) => (
                       <div
                         key={index}
-                        className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 bg-slate-50/40 rounded-2xl border border-slate-100 relative group"
+                        className="flex flex-col md:flex-row items-start md:items-center gap-4 p-4 bg-slate-50/40 rounded-2xl border border-slate-100"
                       >
-                        {/* اسم أو كود اللون */}
+                        {/* اسم اللون */}
                         <div className="flex-1 w-full flex flex-col gap-1.5">
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -491,29 +468,25 @@ const UpdateProductForm = () => {
                             <Field
                               name={`colors.${index}.color`}
                               type="text"
-                              placeholder="Color name (e.g., Matte Black)"
-                              className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
+                              placeholder="Color name"
+                              className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none text-sm"
                             />
                           </div>
-                          <ErrorMessage
-                            name={`colors.${index}.color`}
-                            component="span"
-                            className="text-xs font-medium text-red-500"
-                          />
+                          <ErrorMessage name={`colors.${index}.color`} component="span" className="text-xs font-medium text-red-500" />
                         </div>
 
-                        {/* إدخال الصورة / الرابط للمتغير */}
+                        {/* رفع الصورة للمتغير */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
-                              <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-500 transition-colors">
+                              <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors">
                                 <ImageIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
                                   {values.colors[index].image
                                     ? typeof values.colors[index].image === "string"
                                       ? "Existing Image"
-                                      : values.colors[index].image.name || "Image Selected"
-                                    : "Upload New Image"}
+                                      : values.colors[index].image.name
+                                    : "Choose Image"}
                                 </span>
                                 <input
                                   type="file"
@@ -527,7 +500,7 @@ const UpdateProductForm = () => {
                               </label>
                             </div>
 
-                            {/* معاينة الصورة المحددة */}
+                            {/* معاينة */}
                             {values.colors[index].image && (
                               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
                                 <img
@@ -542,35 +515,26 @@ const UpdateProductForm = () => {
                               </div>
                             )}
                           </div>
-                          <ErrorMessage
-                            name={`colors.${index}.image`}
-                            component="span"
-                            className="text-xs font-medium text-red-500"
-                          />
+                          <ErrorMessage name={`colors.${index}.image`} component="span" className="text-xs font-medium text-red-500" />
                         </div>
 
-                        {/* مفتاح تبديل التوفر الخاص بكل لون */}
-                        <div className="flex items-center gap-2 min-w-[120px] self-center pt-2 md:pt-0">
+                        {/* حالة التوفر للون */}
+                        <div className="flex items-center gap-2 min-w-[120px] pt-2 md:pt-0">
                           <label className="inline-flex items-center cursor-pointer select-none">
-                            <Field
-                              type="checkbox"
-                              name={`colors.${index}.inStock`}
-                              className="sr-only peer"
-                            />
-                            <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <Field type="checkbox" name={`colors.${index}.inStock`} className="sr-only peer" />
+                            <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                             <span className="ms-2 text-xs font-medium text-slate-600">
                               {colorItem.inStock ? "In Stock" : "OOS"}
                             </span>
                           </label>
                         </div>
 
-                        {/* زر حذف المتغير */}
+                        {/* حذف المتغير */}
                         {values.colors.length > 1 && (
                           <button
                             type="button"
                             onClick={() => remove(index)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors md:self-center self-end mt-2 md:mt-0"
-                            title="Remove variant"
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors self-end md:self-center"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -590,12 +554,12 @@ const UpdateProductForm = () => {
               </FieldArray>
             </div>
 
-            {/* زر حفظ التغييرات وإرسال التحديث */}
+            {/* زر حفظ التغييرات */}
             <div className="pt-4">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-100 hover:shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-4 focus:ring-indigo-100 active:scale-98"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none"
               >
                 {isSubmitting ? (
                   <>
