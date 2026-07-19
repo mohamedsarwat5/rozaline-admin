@@ -2,9 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Formik, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import axios from "axios";
-// تذكر تعديل هذا المسار إلى مسار الـ Instance الفعلي في مشروعك إذا كان في ملف منفصل
-import axiosInstance from "axios";
+import axios from "axios"; // الاعتماد الكلي على المكتبة مباشرة كما تفضل
 import {
   Package,
   FileText,
@@ -75,7 +73,7 @@ const AddProductForm = () => {
     colors: [{ color: "", image: null, inStock: true }],
   };
 
-  // دالة ضغط الصور باستخدام Canvas وتخفيف استهلاك الرام
+  // دالة ضغط الصور للموبايل
   const compressImageForMobile = (file, maxWidth = 1000, quality = 0.7) => {
     return new Promise((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
@@ -150,11 +148,12 @@ const AddProductForm = () => {
             formData.append("file", compressedFile);
             formData.append(
               "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET",
+              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
             );
 
+            // رفع الصور إلى Cloudinary
             const cloudinaryResponse = await axios.post(
-              `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"}/image/upload`,
+              `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
               formData,
             );
 
@@ -172,13 +171,14 @@ const AddProductForm = () => {
         colors: uploadedColors,
       };
 
-      await axiosInstance.post(`${baseUrl}/products`, finalValues);
+      // إرسال المنتج مباشرة بالـ axios العادي إلى السيرفر الخاص بك
+      await axios.post(`${baseUrl}/products`, finalValues);
       alert("Product added successfully!");
       navigate("/");
     } catch (error) {
       console.error("Error details:", error);
       alert(
-        `حدث خطأ: ${error.response?.data?.message || error.message || JSON.stringify(error)}`,
+        `حدث خطأ: ${error.response?.data?.message || error.message || "فشلت عملية الإرسال"}`,
       );
     } finally {
       setSubmitting(false);
@@ -218,7 +218,6 @@ const AddProductForm = () => {
         onSubmit={handleAddSubmit}
       >
         {({ values, isSubmitting, errors, touched, setFieldValue, handleSubmit }) => (
-          /* هُنا التعديل الجوهري: استبدال مفتاح Form بـ form وحقن منع السلوك الافتراضي */
           <form
             onSubmit={(e) => {
               e.preventDefault();
