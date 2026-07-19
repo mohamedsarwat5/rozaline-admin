@@ -4,6 +4,7 @@ import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
 import axiosInstance from "axios"; // يعتمد على الـ Instance المحلية الخاصة بك
+import imageCompression from "browser-image-compression";
 import {
   Package,
   FileText,
@@ -12,7 +13,7 @@ import {
   CheckCircle,
   XCircle,
   Palette,
-  Image,
+  Image as ImageIcon,
   Plus,
   Trash2,
   Loader2,
@@ -40,7 +41,7 @@ const ProductValidationSchema = Yup.object().shape({
         color: Yup.string().required("Color name/code is required"),
         image: Yup.mixed().required("Image file or URL is required"),
         inStock: Yup.boolean(),
-      }),
+      })
     )
     .min(1, "At least one color variant is required"),
   availableWeights: Yup.array().of(Yup.string()),
@@ -102,15 +103,32 @@ const UpdateProductForm = () => {
     fetchProductDetails();
   }, [id, navigate]);
 
-  // 2. معالجة تحديث المنتج وإرسال البيانات
+  // 2. معالجة تحديث المنتج وإرسال البيانات مع ضغط الصور
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
     try {
-      // رفع الصور الجديدة فقط إلى Cloudinary إذا تم تعديلها
+      // إعدادات ضغط الصورة (بحد أقصى 1 ميجا وجودة متوازنة لسرعة الرفع والتحميل)
+      const compressionOptions = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        fileType: "image/jpeg",
+      };
+
+      // رفع الصور الجديدة فقط إلى Cloudinary إذا تم تعديلها وضغطها قبل الرفع
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
           if (colorItem.image && typeof colorItem.image !== "string") {
+            let fileToUpload = colorItem.image;
+
+            try {
+              // تنفيذ عملية الضغط قبل الرفع مباشرة
+              fileToUpload = await imageCompression(colorItem.image, compressionOptions);
+            } catch (compressionError) {
+              console.error("Compression failed, uploading original file:", compressionError);
+            }
+
             const formData = new FormData();
-            formData.append("file", colorItem.image);
+            formData.append("file", fileToUpload);
             formData.append(
               "upload_preset",
               import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
@@ -127,7 +145,7 @@ const UpdateProductForm = () => {
             };
           }
           return colorItem;
-        }),
+        })
       );
 
       const finalValues = {
@@ -142,7 +160,7 @@ const UpdateProductForm = () => {
       console.error("Error updating product:", error);
       alert(
         error.response?.data?.message ||
-          "Something went wrong while updating. Please try again.",
+          "Something went wrong while updating. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -248,7 +266,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* الأوزان المتاحة (مطابق تماماً لـ addProduct الكود الخاص بك) */}
+              {/* الأوزان المتاحة */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-700">
                   Available Weights
@@ -288,7 +306,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* الأطوال المتاحة (مطابق تماماً لـ addProduct الكود الخاص بك) */}
+              {/* الأطوال المتاحة */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-700">
                   Available Lengths
@@ -351,7 +369,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* لوحة التحكم بالحالات والشارات (Status & Badges Block) */}
+              {/* لوحة التحكم بالحالات والشارات */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
                 {/* حالة التوفر في المخزن */}
                 <div className="flex flex-col gap-2">
@@ -442,7 +460,7 @@ const UpdateProductForm = () => {
 
             <hr className="my-6 border-slate-100" />
 
-            {/* مصفوفة الألوان والصور المتغيرة (Colors & Images Array) */}
+            {/* مصفوفة الألوان والصور المتغيرة */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -489,7 +507,7 @@ const UpdateProductForm = () => {
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
                               <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-500 transition-colors">
-                                <Image className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                <ImageIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">
                                   {values.colors[index].image
                                     ? typeof values.colors[index].image === "string"

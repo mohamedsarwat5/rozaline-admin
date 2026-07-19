@@ -2,6 +2,7 @@ import React from "react";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
+import imageCompression from "browser-image-compression"; // 1. استيراد المكتبة هنا
 import {
   Package,
   FileText,
@@ -14,8 +15,8 @@ import {
   Plus,
   Trash2,
   Loader2,
-  Award,       // تم استيراد أيكونة الأكثر مبيعاً
-  Sparkles,    // تم استيراد أيكونة المنتجات الجديدة
+  Award,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -30,8 +31,8 @@ const ProductValidationSchema = Yup.object().shape({
     .positive("Price must be positive")
     .required("Price is required"),
   inStock: Yup.boolean(),
-  bestSeller: Yup.boolean(), // تم الإضافة هنا
-  newArrival: Yup.boolean(), // تم الإضافة هنا
+  bestSeller: Yup.boolean(),
+  newArrival: Yup.boolean(),
   colors: Yup.array()
     .of(
       Yup.object().shape({
@@ -70,8 +71,8 @@ const AddProductForm = () => {
     category: "",
     price: "",
     inStock: true,
-    bestSeller: false,  // تم التأكيد عليها بقيمة ابتدائية false
-    newArrival: false,  // تم الإضافة هنا بقيمة ابتدائية false
+    bestSeller: false,
+    newArrival: false,
     availableWeights: [],
     availableLengths: [],
     colors: [{ color: "", image: null, inStock: true }],
@@ -79,12 +80,27 @@ const AddProductForm = () => {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      // 1. رفع الصور المحددة إلى Cloudinary بالتوازي لتوفير الوقت
+      // 2. إعدادات الضغط الذكي المتوافقة مع الويب والآيفون
+      const compressionOptions = {
+        maxSizeMB: 0.8,          // أقصى حجم مستهدف (800 كيلوبايت كافية جداً لكوالتي خيالي)
+        maxWidthOrHeight: 1600, // أبعاد ممتازة ومثالية للعرض على المتجر الإلكتروني
+        useWebWorker: true,
+        fileType: "image/jpeg", // تحويل إجباري لـ JPEG لضمان الدعم الكامل والرفع السريع
+      };
+
+      // 3. ضغط الصور ثم رفعها إلى Cloudinary بالتوازي لتوفير الوقت
       const uploadedColors = await Promise.all(
         values.colors.map(async (colorItem) => {
           if (colorItem.image && typeof colorItem.image !== "string") {
+
+            // تنفيذ عملية الضغط فوراً في متصفح المستخدم قبل الرفع
+            console.log(`Original size: ${(colorItem.image.size / 1024 / 1024).toFixed(2)} MB`);
+            const compressedFile = await imageCompression(colorItem.image, compressionOptions);
+            console.log(`Compressed size: ${(compressedFile.size / 1024).toFixed(0)} KB`);
+
             const formData = new FormData();
-            formData.append("file", colorItem.image);
+            // نمرر الملف المضغوط الجديد بدلاً من الملف الأصلي الضخم
+            formData.append("file", compressedFile);
             formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET");
 
             const cloudinaryResponse = await axios.post(
@@ -101,13 +117,13 @@ const AddProductForm = () => {
         })
       );
 
-      // 2. دمج مصفوفة الألوان الجديدة بعد تحويل صورها إلى روابط داخل الداتا النهائية
+      // 4. دمج مصفوفة الألوان الجديدة بعد تحويل صورها إلى روابط داخل الداتا النهائية
       const finalValues = {
         ...values,
         colors: uploadedColors,
       };
 
-      // 3. إرسال الداتا للباك إند
+      // 5. إرسال الداتا للباك إند
       const response = await axios.post(`${baseUrl}/products`, finalValues);
       alert("Product added successfully!");
       resetForm();
@@ -301,95 +317,94 @@ const AddProductForm = () => {
                 />
               </div>
 
-              {/* تجميع كل الـ Switches التفاعلية في حاوية فرعية رائعة داخل الجريد الأساسي */}
-             {/* Switches Container */}
-<div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6 p-5 bg-slate-50/50 border border-slate-100 rounded-2xl mt-2">
+              {/* Switches Container */}
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6 p-5 bg-slate-50/50 border border-slate-100 rounded-2xl mt-2">
 
-  {/* Stock Status Toggle */}
-  <div className="flex flex-col gap-1.5">
-    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
-      Availability Status
-    </span>
-    <label className="inline-flex items-center cursor-pointer select-none">
-      <input
-        type="checkbox"
-        name="inStock"
-        checked={values.inStock}
-        onChange={() => setFieldValue("inStock", !values.inStock)}
-        className="sr-only peer"
-      />
-      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-        {values.inStock ? (
-          <span className="text-emerald-600 font-semibold flex items-center gap-1">
-            <CheckCircle className="w-4 h-4 shrink-0" /> In Stock
-          </span>
-        ) : (
-          <span className="text-amber-600 font-semibold flex items-center gap-1">
-            <XCircle className="w-4 h-4 shrink-0" /> Sold out
-          </span>
-        )}
-      </span>
-    </label>
-  </div>
+                {/* Stock Status Toggle */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                    Availability Status
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      name="inStock"
+                      checked={values.inStock}
+                      onChange={() => setFieldValue("inStock", !values.inStock)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                      {values.inStock ? (
+                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4 shrink-0" /> In Stock
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 font-semibold flex items-center gap-1">
+                          <XCircle className="w-4 h-4 shrink-0" /> Sold out
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
 
-  {/* Best Seller Toggle */}
-  <div className="flex flex-col gap-1.5">
-    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
-      Best Seller Badge
-    </span>
-    <label className="inline-flex items-center cursor-pointer select-none">
-      <input
-        type="checkbox"
-        name="bestSeller"
-        checked={values.bestSeller}
-        onChange={() => setFieldValue("bestSeller", !values.bestSeller)}
-        className="sr-only peer"
-      />
-      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-        {values.bestSeller ? (
-          <span className="text-amber-500 font-semibold flex items-center gap-1">
-            <Award className="w-4 h-4 shrink-0" /> Best Seller
-          </span>
-        ) : (
-          <span className="text-slate-400 font-medium flex items-center gap-1">
-            <Award className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
-          </span>
-        )}
-      </span>
-    </label>
-  </div>
+                {/* Best Seller Toggle */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                    Best Seller Badge
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      name="bestSeller"
+                      checked={values.bestSeller}
+                      onChange={() => setFieldValue("bestSeller", !values.bestSeller)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                      {values.bestSeller ? (
+                        <span className="text-amber-500 font-semibold flex items-center gap-1">
+                          <Award className="w-4 h-4 shrink-0" /> Best Seller
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-medium flex items-center gap-1">
+                          <Award className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
 
-  {/* New Arrival Toggle */}
-  <div className="flex flex-col gap-1.5">
-    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
-      New Arrival Badge
-    </span>
-    <label className="inline-flex items-center cursor-pointer select-none">
-      <input
-        type="checkbox"
-        name="newArrival"
-        checked={values.newArrival}
-        onChange={() => setFieldValue("newArrival", !values.newArrival)}
-        className="sr-only peer"
-      />
-      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-      <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-        {values.newArrival ? (
-          <span className="text-violet-600 font-semibold flex items-center gap-1">
-            <Sparkles className="w-4 h-4 shrink-0" /> New Arrival
-          </span>
-        ) : (
-          <span className="text-slate-400 font-medium flex items-center gap-1">
-            <Sparkles className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
-          </span>
-        )}
-      </span>
-    </label>
-  </div>
+                {/* New Arrival Toggle */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                    New Arrival Badge
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      name="newArrival"
+                      checked={values.newArrival}
+                      onChange={() => setFieldValue("newArrival", !values.newArrival)}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                      {values.newArrival ? (
+                        <span className="text-violet-600 font-semibold flex items-center gap-1">
+                          <Sparkles className="w-4 h-4 shrink-0" /> New Arrival
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-medium flex items-center gap-1">
+                          <Sparkles className="w-4 h-4 shrink-0 opacity-50" /> Standard Item
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
 
-</div>
+              </div>
             </div>
 
             {/* Description */}
@@ -562,8 +577,7 @@ const AddProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Saving
-                    Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Saving Product...
                   </>
                 ) : (
                   "Publish Product"
