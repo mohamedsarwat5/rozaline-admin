@@ -233,6 +233,7 @@ const AddProductForm = () => {
                   <option value="Abaya">Abaya</option>
                   <option value="Soirée">Soirée</option>
                   <option value="Dresses">Dresses</option>
+                  <option value="Cardigan">Cardigan</option>
                 </Field>
                 <ErrorMessage
                   name="category"

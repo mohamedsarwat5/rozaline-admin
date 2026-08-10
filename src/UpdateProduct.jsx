@@ -301,6 +301,7 @@ const UpdateProductForm = () => {
                   <option value="Abaya">Abaya</option>
                   <option value="Soirée">Soirée</option>
                   <option value="Dresses">Dresses</option>
+                  <option value="Cardigan">Cardigan</option>
                 </Field>
                 <ErrorMessage name="category" component="span" className="text-xs font-medium text-red-500 mt-1" />
               </div>
