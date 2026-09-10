@@ -1,12 +1,25 @@
 @import "tailwindcss";
 
 
-.active::after{
+/* .active::after {
   content: "";
   height: 1px;
   width: 100%;
-  background-color: white ;
+  background-color: #FB6F92;
   position: absolute;
   bottom: -2px;
   left: 0;
+} */
+
+.active{
+  @apply text-white bg-pink5/90 py-1.5 px-3 rounded-lg
+}
+
+
+@theme {
+  --color-pink1: #FFE5EC;
+  --color-pink2: #FFC2D1;
+  --color-pink3: #FFB3C6;
+  --color-pink4: #FF8FAB;
+  --color-pink5: #FB6F92;
 }

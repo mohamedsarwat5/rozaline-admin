@@ -18,7 +18,7 @@ export default function ProductCard({ product, onDelete }) {
       {/* Content */}
       {/* أضفنا flex-1 flex flex-col هنا لتوزيع المساحة المتبقية */}
       <div className="p-5 flex-1 flex flex-col">
-        <div className="flex items-center gap-2 mb-2 text-indigo-600">
+        <div className="flex items-center gap-2 mb-2 text-pink5">
           <Package size={18} />
           <span className="text-sm font-medium capitalize">
             {product.category}
@@ -38,7 +38,7 @@ export default function ProductCard({ product, onDelete }) {
           {product.colors?.map((item) => (
             <div
               key={item._id}
-              className="capitalize px-3 py-1 bg-indigo-100 rounded-xl"
+              className="capitalize px-3 py-1 bg-pink1 text-pink5 font-bold rounded-xl"
               title={item.color}
             >
               {item.color}
@@ -55,8 +55,8 @@ export default function ProductCard({ product, onDelete }) {
           >
             {product.inStock ? "in Stock" : "sold out"}
           </span>
-          <span className="text-2xl font-bold text-indigo-600">
-            {product.price} EGP
+          <span className="text-2xl font-bold text-pink5">
+           EGP {product.price}
           </span>
         </div>
 
@@ -65,7 +65,7 @@ export default function ProductCard({ product, onDelete }) {
         <div className="flex gap-3 mt-auto">
           <Link
             to={`/updateproduct/${product._id}`}
-            className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition"
+            className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-lg transition-all duration-300 "
           >
             <Pencil size={18} />
             Update
@@ -73,7 +73,7 @@ export default function ProductCard({ product, onDelete }) {
 
           <button
             onClick={() => onDelete(product._id)}
-            className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-lg transition"
+            className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 hover:bg-red-500/10   text-red-500 py-2.5 rounded-lg transition-all duration-300 hover:cursor-pointer font-medium"
           >
             <Trash2 size={18} />
             Delete

@@ -7,7 +7,7 @@ export default function ScrollToTop() {
   };
 
   return (
-    <div onClick={scrollToTop} className="bg-pink-500 h-12 w-12 flex items-center justify-center fixed right-4 bottom-4 z-10 rounded-full">
+    <div onClick={scrollToTop} className="bg-pink5 h-12 w-12 flex items-center justify-center fixed right-4 bottom-4 z-10 rounded-full">
       <ArrowUp color="white" />
     </div>
   );
