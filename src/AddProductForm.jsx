@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Sparkles,
   Flame,
+  Tag,
 } from "lucide-react";
 
 const baseUrl = import.meta.env.VITE_BASE_URL;
@@ -31,6 +32,15 @@ const ProductValidationSchema = Yup.object().shape({
   price: Yup.number()
     .positive("Price must be positive")
     .required("Price is required"),
+  onSale: Yup.boolean(),
+  SalePrice: Yup.number().when("onSale", {
+    is: true,
+    then: (schema) =>
+      schema
+        .positive("Sale price must be positive")
+        .required("Sale price is required when product is on sale"),
+    otherwise: (schema) => schema.nullable().notRequired(),
+  }),
   inStock: Yup.boolean(),
   newArrival: Yup.boolean(),
   bestSeller: Yup.boolean(),
@@ -66,6 +76,8 @@ const AddProductForm = () => {
     description: "",
     category: "",
     price: "",
+    onSale: false,
+    SalePrice: "",
     inStock: true,
     newArrival: false,
     bestSeller: false,
@@ -75,7 +87,6 @@ const AddProductForm = () => {
   };
 
   const handleAddSubmit = async (values, { setSubmitting }) => {
-    // التأكد من عدم وجود أي صورة لا تزال قيد الضغط لمنع الرفع العشوائي
     if (values.colors.some((c) => c.isCompressing)) {
       alert("⚠️ يرجى الانتظار حتى ينتهي ضغط الصور أولاً.");
       setSubmitting(false);
@@ -104,7 +115,6 @@ const AddProductForm = () => {
               formData,
             );
 
-            // حذف حقل المراقبة الداخلي قبل إرسال البيانات للسيرفر الخاص بك
             const { isCompressing, ...restColorItem } = colorItem;
 
             return {
@@ -118,6 +128,7 @@ const AddProductForm = () => {
 
       const finalValues = {
         ...values,
+        SalePrice: values.onSale ? Number(values.SalePrice) : undefined,
         colors: uploadedColors,
       };
 
@@ -139,7 +150,7 @@ const AddProductForm = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto  p-10  bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
+    <div className="max-w-4xl mx-auto p-10 bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.03)] border border-slate-100">
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -148,6 +159,7 @@ const AddProductForm = () => {
         <ArrowLeft className="w-3.5 h-3.5" />
         Back
       </button>
+
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
@@ -252,7 +264,7 @@ const AddProductForm = () => {
                       {weightOptions.map((weight) => (
                         <label
                           key={weight}
-                          className="flex items-center gap-2 text-sm text-slate-700"
+                          className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -262,7 +274,7 @@ const AddProductForm = () => {
                               else
                                 remove(values.availableWeights.indexOf(weight));
                             }}
-                            className="w-4 h-4"
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                           />
                           {weight}
                         </label>
@@ -283,7 +295,7 @@ const AddProductForm = () => {
                       {lengthOptions.map((length) => (
                         <label
                           key={length}
-                          className="flex items-center gap-2 text-sm text-slate-700"
+                          className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
                         >
                           <input
                             type="checkbox"
@@ -293,7 +305,7 @@ const AddProductForm = () => {
                               else
                                 remove(values.availableLengths.indexOf(length));
                             }}
-                            className="w-4 h-4"
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                           />
                           {length}
                         </label>
@@ -303,7 +315,7 @@ const AddProductForm = () => {
                 </FieldArray>
               </div>
 
-              {/* Price */}
+              {/* Original Price */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-slate-400" /> Price (EGP)
@@ -325,16 +337,45 @@ const AddProductForm = () => {
                 />
               </div>
 
+              {/* Sale Price Input (Conditional Rendering) */}
+              {values.onSale && (
+                <div className="flex flex-col gap-1.5 transition-all duration-300">
+                  <label className="text-sm font-semibold text-rose-600 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-rose-500" /> Sale Price (EGP)
+                  </label>
+                  <Field
+                    name="SalePrice"
+                    type="number"
+                    placeholder="0.00"
+                    className={`px-4 py-2.5 rounded-xl border bg-rose-50/30 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
+                      errors.SalePrice && touched.SalePrice
+                        ? "border-red-400 focus:ring-red-200"
+                        : "border-rose-200 focus:ring-rose-100 focus:border-rose-500"
+                    }`}
+                  />
+                  <ErrorMessage
+                    name="SalePrice"
+                    component="span"
+                    className="text-xs font-medium text-red-500 mt-1"
+                  />
+                </div>
+              )}
+
               {/* Badges Panel */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:col-span-2 p-5 bg-slate-50/50 rounded-2xl border border-slate-100/80">
+                {/* Availability */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Availability
                   </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field
+                    <input
                       type="checkbox"
                       name="inStock"
+                      checked={values.inStock}
+                      onChange={(e) =>
+                        setFieldValue("inStock", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
@@ -352,14 +393,51 @@ const AddProductForm = () => {
                   </label>
                 </div>
 
+                {/* On Sale */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    On Sale Status
+                  </span>
+                  <label className="inline-flex items-center cursor-pointer select-none mt-1">
+                    <input
+                      type="checkbox"
+                      name="onSale"
+                      checked={values.onSale}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        setFieldValue("onSale", isChecked);
+                        if (!isChecked) {
+                          setFieldValue("SalePrice", "");
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-rose-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    <span className="ms-3 text-sm font-semibold text-slate-700">
+                      {values.onSale ? (
+                        <span className="text-rose-600 flex items-center gap-1">
+                          <Tag className="w-4 h-4" /> On Sale
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Regular</span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+
+                {/* New Arrival */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     New Arrival
                   </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field
+                    <input
                       type="checkbox"
                       name="newArrival"
+                      checked={values.newArrival}
+                      onChange={(e) =>
+                        setFieldValue("newArrival", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
@@ -375,14 +453,19 @@ const AddProductForm = () => {
                   </label>
                 </div>
 
+                {/* Best Seller */}
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Best Seller
                   </span>
                   <label className="inline-flex items-center cursor-pointer select-none mt-1">
-                    <Field
+                    <input
                       type="checkbox"
                       name="bestSeller"
+                      checked={values.bestSeller}
+                      onChange={(e) =>
+                        setFieldValue("bestSeller", e.target.checked)
+                      }
                       className="sr-only peer"
                     />
                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
@@ -470,13 +553,16 @@ const AddProductForm = () => {
                           />
                         </div>
 
-                        {/* قسم رفع الصور المحمي بمؤشر التحميل وبجودة HD */}
-                        {/* قسم رفع الصور المحمي بمؤشر التحميل وبجودة HD */}
+                        {/* Image Upload Block */}
                         <div className="flex-[2] w-full flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
                               <label
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors ${values.colors[index].isCompressing ? "opacity-60 pointer-events-none bg-slate-50" : ""}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors ${
+                                  values.colors[index].isCompressing
+                                    ? "opacity-60 pointer-events-none bg-slate-50"
+                                    : ""
+                                }`}
                               >
                                 {values.colors[index].isCompressing ? (
                                   <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
@@ -492,7 +578,6 @@ const AddProductForm = () => {
                                 </span>
                                 <input
                                   type="file"
-                                  Orca-input="true"
                                   className="hidden"
                                   accept="image/*"
                                   disabled={
@@ -500,27 +585,26 @@ const AddProductForm = () => {
                                     isSubmitting
                                   }
                                   onChange={async (event) => {
-                                    // استخدام currentTarget وضمان قراءة الملف بشكل سليم للموبايل
-                                    const file = event.currentTarget.files?.[0];
+                                    const file =
+                                      event.currentTarget.files?.[0];
                                     if (file) {
                                       try {
                                         setFieldValue(
                                           `colors.${index}.isCompressing`,
                                           true,
                                         );
-
-                                        // إعدادات محسنة للموبايل لضمان عدم توقف المتصفح
                                         const options = {
                                           maxSizeMB: 1.2,
                                           maxWidthOrHeight: 1600,
-                                          useWebWorker: false, // تعطيله يحل مشاكل متصفحات الموبايل (Safari/Chrome Mobile) مع الملفات الكبيرة
+                                          useWebWorker: false,
                                           fileType: "image/jpeg",
                                         };
 
                                         const compressedBlob =
-                                          await imageCompression(file, options);
-
-                                        // توليد اسم ملف آمن للموبايل مع امتداد jpeg
+                                          await imageCompression(
+                                            file,
+                                            options,
+                                          );
                                         const safeName = file.name
                                           ? file.name.replace(/\.[^/.]+$/, "") +
                                             ".jpg"
@@ -529,9 +613,7 @@ const AddProductForm = () => {
                                         const compressedFile = new File(
                                           [compressedBlob],
                                           safeName,
-                                          {
-                                            type: "image/jpeg",
-                                          },
+                                          { type: "image/jpeg" },
                                         );
 
                                         setFieldValue(
@@ -547,8 +629,6 @@ const AddProductForm = () => {
                                           "Mobile compression failed, trying direct upload:",
                                           compressError,
                                         );
-
-                                        // خطة بديلة (Fallback): إذا فشل الضغط على الموبايل، نأخذ الملف الأصلي مباشرة دون تعطيل المستخدم
                                         setFieldValue(
                                           `colors.${index}.image`,
                                           file,
@@ -593,25 +673,12 @@ const AddProductForm = () => {
                           />
                         </div>
 
-                        <div className="flex items-center gap-2 min-w-[120px] pt-2 md:pt-0">
-                          <label className="inline-flex items-center cursor-pointer select-none">
-                            <Field
-                              type="checkbox"
-                              name={`colors.${index}.inStock`}
-                              className="sr-only peer"
-                            />
-                            <div className="relative w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:bg-indigo-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                            <span className="ms-2 text-xs font-medium text-slate-600">
-                              {colorItem.inStock ? "In Stock" : "OOS"}
-                            </span>
-                          </label>
-                        </div>
-
+                        {/* Remove button */}
                         {values.colors.length > 1 && (
                           <button
                             type="button"
                             onClick={() => remove(index)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors self-end md:self-center"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -629,36 +696,32 @@ const AddProductForm = () => {
                           isCompressing: false,
                         })
                       }
-                      className="w-full py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/10"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-indigo-600 bg-indigo-50/70 hover:bg-indigo-100/70 rounded-xl transition-colors cursor-pointer"
                     >
-                      <Plus className="w-4 h-4" /> Add Color Variant
+                      <Plus className="w-4 h-4" /> Add Variant
                     </button>
                   </div>
                 )}
               </FieldArray>
             </div>
 
-            {/* زر الحفظ محمي بالكامل من الضغط العشوائي */}
-            <div className="pt-4">
+            {/* Submit Button */}
+            <div className="pt-6 border-t border-slate-100 flex justify-end">
               <button
                 type="submit"
-                disabled={
-                  isSubmitting || values.colors.some((c) => c.isCompressing)
-                }
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none"
+                disabled={isSubmitting}
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Publishing
-                    Product...
-                  </>
-                ) : values.colors.some((c) => c.isCompressing) ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Processing HD
-                    Images...
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Publishing Product...</span>
                   </>
                 ) : (
-                  "Publish Product"
+                  <>
+                    <Plus className="w-5 h-5" />
+                    <span>Publish Product</span>
+                  </>
                 )}
               </button>
             </div>
