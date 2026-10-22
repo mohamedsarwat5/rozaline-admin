@@ -47,7 +47,7 @@ const ProductValidationSchema = Yup.object().shape({
     .of(
       Yup.object().shape({
         color: Yup.string().required("Color name is required"),
-        image: Yup.mixed().required("Image is required"),
+        image: Yup.string().trim().required("Image URL is required"),
         inStock: Yup.boolean(),
       })
     )
@@ -55,66 +55,6 @@ const ProductValidationSchema = Yup.object().shape({
   availableWeights: Yup.array().of(Yup.string()),
   availableLengths: Yup.array().of(Yup.string()),
 });
-
-// دالة ضغط الصور
-const compressImageForMobile = (file, maxWidth = 1200, quality = 0.75) => {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.src = objectUrl;
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxWidth) {
-          width = Math.round((width * maxWidth) / height);
-          height = maxWidth;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-
-      URL.revokeObjectURL(objectUrl);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compressedFile = new File(
-              [blob],
-              file.name.replace(/\.[^/.]+$/, "") + ".jpg",
-              {
-                type: "image/jpeg",
-                lastModified: Date.now(),
-              }
-            );
-            resolve(compressedFile);
-          } else {
-            reject(new Error("Canvas conversion failed"));
-          }
-        },
-        "image/jpeg",
-        quality
-      );
-    };
-
-    img.onerror = (err) => {
-      URL.revokeObjectURL(objectUrl);
-      reject(err);
-    };
-  });
-};
 
 const ColorVariantRow = ({
   colorItem,
@@ -127,11 +67,7 @@ const ColorVariantRow = ({
   const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
-    if (colorItem.image instanceof File) {
-      const url = URL.createObjectURL(colorItem.image);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else if (typeof colorItem.image === "string") {
+    if (typeof colorItem.image === "string" && colorItem.image.trim() !== "") {
       setPreviewUrl(colorItem.image);
     } else {
       setPreviewUrl(null);
@@ -162,62 +98,25 @@ const ColorVariantRow = ({
       <div className="flex-[2] w-full flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <label
-              className={`flex items-center justify-between gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors ${
-                colorItem.isCompressing
-                  ? "opacity-60 pointer-events-none bg-slate-50"
-                  : ""
-              }`}
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                {colorItem.isCompressing ? (
-                  <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
-                ) : (
-                  <Upload className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                )}
-                <span className="truncate max-w-[180px]">
-                  {colorItem.isCompressing
-                    ? "Compressing..."
-                    : colorItem.image instanceof File
-                    ? colorItem.image.name
-                    : colorItem.image
-                    ? "Existing Image"
-                    : "Choose Image"}
-                </span>
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={colorItem.isCompressing || isSubmitting}
-                onChange={async (event) => {
-                  const file = event.currentTarget.files?.[0];
-                  if (file) {
-                    try {
-                      setFieldValue(`colors.${index}.isCompressing`, true);
-                      const compressedFile = await compressImageForMobile(
-                        file,
-                        1200,
-                        0.75
-                      );
-                      setFieldValue(`colors.${index}.image`, compressedFile);
-                    } catch (compressError) {
-                      setFieldValue(`colors.${index}.image`, file);
-                    } finally {
-                      setFieldValue(`colors.${index}.isCompressing`, false);
-                    }
-                  }
-                }}
-              />
-            </label>
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Upload className="w-4 h-4 text-slate-400" />
+            </span>
+            <Field
+              name={`colors.${index}.image`}
+              type="text"
+              placeholder="Paste image URL here"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
+            />
           </div>
 
-          {previewUrl && !colorItem.isCompressing && (
+          {previewUrl && (
             <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0 bg-slate-100 shadow-sm">
               <img
                 src={previewUrl}
                 alt="Preview"
                 className="w-full h-full object-cover"
+                onError={() => setPreviewUrl(null)}
               />
             </div>
           )}
@@ -277,11 +176,7 @@ const UpdateProductForm = () => {
     const fetchProduct = async () => {
       try {
         const response = await axios.get(`${baseUrl}/products/${id}`);
-        const enrichedColors =
-          response.data.colors?.map((c) => ({
-            ...c,
-            isCompressing: false,
-          })) || [];
+        const enrichedColors = response.data.colors || [];
 
         setProductData({
           ...response.data,
@@ -299,50 +194,15 @@ const UpdateProductForm = () => {
   }, [id, navigate]);
 
   const handleUpdateSubmit = async (values, { setSubmitting }) => {
-    const checkingCompression = values.colors.some((c) => c.isCompressing);
-    if (checkingCompression) {
-      alert("Please wait until image compression is finished.");
-      setSubmitting(false);
-      return;
-    }
-
     try {
-      const uploadedColors = await Promise.all(
-        values.colors.map(async (colorItem) => {
-          if (colorItem.image instanceof File) {
-            const formData = new FormData();
-            formData.append("file", colorItem.image);
-            formData.append(
-              "upload_preset",
-              import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "YOUR_UPLOAD_PRESET"
-            );
-
-            const cloudinaryResponse = await axios.post(
-              `https://api.cloudinary.com/v1_1/${
-                import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "YOUR_CLOUD_NAME"
-              }/image/upload`,
-              formData
-            );
-
-            return {
-              color: colorItem.color,
-              inStock: colorItem.inStock,
-              image: cloudinaryResponse.data.secure_url,
-            };
-          }
-
-          return {
-            color: colorItem.color,
-            inStock: colorItem.inStock,
-            image: colorItem.image,
-          };
-        })
-      );
-
       const finalValues = {
         ...values,
         salePrice: values.onSale ? Number(values.salePrice) : null,
-        colors: uploadedColors,
+        colors: values.colors.map((colorItem) => ({
+          color: colorItem.color,
+          inStock: colorItem.inStock,
+          image: colorItem.image,
+        })),
       };
 
       await axios.put(`${baseUrl}/products/${id}`, finalValues);
@@ -411,7 +271,7 @@ const UpdateProductForm = () => {
           availableWeights: productData?.availableWeights || [],
           availableLengths: productData?.availableLengths || [],
           colors: productData?.colors || [
-            { color: "", image: null, inStock: true, isCompressing: false },
+            { color: "", image: "", inStock: true },
           ],
         }}
         validationSchema={ProductValidationSchema}
@@ -497,7 +357,7 @@ const UpdateProductForm = () => {
                 />
               </div>
 
-              {/* Sale Price (ظهر فقط عند تفعيل الـ Sale) */}
+              {/* Sale Price */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Tag className="w-4 h-4 text-slate-400" /> Sale Price (EGP)
@@ -527,7 +387,7 @@ const UpdateProductForm = () => {
                 <label className="text-sm font-semibold text-slate-700">
                   Available Weights
                 </label>
-                <div className="grid grid-cols-1  gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {weightOptions.map((weight) => (
                     <label
                       key={weight}
@@ -703,7 +563,7 @@ const UpdateProductForm = () => {
                     Color Variants
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Modify variants, upload new images or keep existing ones.
+                    Modify variants, update image links or keep existing ones.
                   </p>
                 </div>
                 {typeof errors.colors === "string" && (
@@ -733,9 +593,8 @@ const UpdateProductForm = () => {
                       onClick={() =>
                         push({
                           color: "",
-                          image: null,
+                          image: "",
                           inStock: true,
-                          isCompressing: false,
                         })
                       }
                       className="w-full py-3 border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:bg-indigo-50/20"
@@ -751,17 +610,13 @@ const UpdateProductForm = () => {
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={
-                  isSubmitting || values.colors.some((c) => c.isCompressing)
-                }
+                disabled={isSubmitting}
                 className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 focus:outline-none"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
                   </>
-                ) : values.colors.some((c) => c.isCompressing) ? (
-                  "Compressing Images..."
                 ) : (
                   "Update Product Details"
                 )}
