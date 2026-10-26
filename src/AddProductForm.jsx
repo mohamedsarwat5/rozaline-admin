@@ -28,7 +28,11 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 const ProductValidationSchema = Yup.object().shape({
   name: Yup.string().trim().required("Product name is required"),
   description: Yup.string().trim().required("Description is required"),
-  category: Yup.string().trim().required("Category is required"),
+  // category: Yup.string().trim().required("Category is required"),
+  category: Yup.array()
+    .of(Yup.string().trim())
+    .min(1, "Select at least one category")
+    .required("Category is required"),
   price: Yup.number()
     .positive("Price must be positive")
     .required("Price is required"),
@@ -74,7 +78,8 @@ const AddProductForm = () => {
   const defaultInitialValues = {
     name: "",
     description: "",
-    category: "",
+    // category: "",
+    category: [],
     price: "",
     onSale: false,
     SalePrice: "",
@@ -222,7 +227,7 @@ const AddProductForm = () => {
               </div>
 
               {/* Category */}
-              <div className="flex flex-col gap-1.5">
+              {/* <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-slate-400" /> Category
                 </label>
@@ -246,6 +251,44 @@ const AddProductForm = () => {
                   <option value="Dresses">Dresses</option>
                   <option value="Cardigan">Cardigan</option>
                 </Field>
+                <ErrorMessage
+                  name="category"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
+              </div> */}
+
+              {/* Category */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-slate-400" /> Categories
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    "Sets",
+                    "Skirts",
+                    "Blouses",
+                    "Abaya",
+                    "Soirée",
+                    "Dresses",
+                    "Cardigan",
+                  ].map((category) => (
+                    <label
+                      key={category}
+                      className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
+                    >
+                      <Field
+                        type="checkbox"
+                        name="category"
+                        value={category}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      {category}
+                    </label>
+                  ))}
+                </div>
+
                 <ErrorMessage
                   name="category"
                   component="span"
@@ -585,8 +628,7 @@ const AddProductForm = () => {
                                     isSubmitting
                                   }
                                   onChange={async (event) => {
-                                    const file =
-                                      event.currentTarget.files?.[0];
+                                    const file = event.currentTarget.files?.[0];
                                     if (file) {
                                       try {
                                         setFieldValue(
@@ -601,10 +643,7 @@ const AddProductForm = () => {
                                         };
 
                                         const compressedBlob =
-                                          await imageCompression(
-                                            file,
-                                            options,
-                                          );
+                                          await imageCompression(file, options);
                                         const safeName = file.name
                                           ? file.name.replace(/\.[^/.]+$/, "") +
                                             ".jpg"

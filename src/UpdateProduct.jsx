@@ -27,7 +27,11 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 const ProductValidationSchema = Yup.object().shape({
   name: Yup.string().trim().required("Product name is required"),
   description: Yup.string().trim().required("Description is required"),
-  category: Yup.string().trim().required("Category is required"),
+  // category: Yup.string().trim().required("Category is required"),
+  category: Yup.array()
+    .of(Yup.string().trim())
+    .min(1, "Select at least one category")
+    .required("Category is required"),
   price: Yup.number()
     .positive("Price must be positive")
     .required("Price is required"),
@@ -49,7 +53,7 @@ const ProductValidationSchema = Yup.object().shape({
         color: Yup.string().required("Color name is required"),
         image: Yup.string().trim().required("Image URL is required"),
         inStock: Yup.boolean(),
-      })
+      }),
     )
     .min(1, "At least one color variant is required"),
   availableWeights: Yup.array().of(Yup.string()),
@@ -212,7 +216,7 @@ const UpdateProductForm = () => {
       console.error("Error updating product:", error);
       alert(
         error.response?.data?.message ||
-          "Something went wrong while updating the product."
+          "Something went wrong while updating the product.",
       );
     } finally {
       setSubmitting(false);
@@ -261,7 +265,12 @@ const UpdateProductForm = () => {
         initialValues={{
           name: productData?.name || "",
           description: productData?.description || "",
-          category: productData?.category || "",
+          // category: productData?.category || "",
+          category: Array.isArray(productData?.category)
+            ? productData.category
+            : productData?.category
+              ? [productData.category]
+              : [],
           price: productData?.price || "",
           onSale: productData?.onSale ?? false,
           salePrice: productData?.salePrice || "",
@@ -304,7 +313,7 @@ const UpdateProductForm = () => {
               </div>
 
               {/* Category */}
-              <div className="flex flex-col gap-1.5">
+              {/* <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-slate-400" /> Category
                 </label>
@@ -328,6 +337,43 @@ const UpdateProductForm = () => {
                   <option value="Dresses">Dresses</option>
                   <option value="Cardigan">Cardigan</option>
                 </Field>
+                <ErrorMessage
+                  name="category"
+                  component="span"
+                  className="text-xs font-medium text-red-500 mt-1"
+                />
+              </div> */}
+              {/* Category */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-slate-400" /> Categories
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    "Sets",
+                    "Skirts",
+                    "Blouses",
+                    "Abaya",
+                    "Soirée",
+                    "Dresses",
+                    "Cardigan",
+                  ].map((category) => (
+                    <label
+                      key={category}
+                      className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer"
+                    >
+                      <Field
+                        type="checkbox"
+                        name="category"
+                        value={category}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      {category}
+                    </label>
+                  ))}
+                </div>
+
                 <ErrorMessage
                   name="category"
                   component="span"
@@ -368,7 +414,9 @@ const UpdateProductForm = () => {
                   placeholder="0.00"
                   disabled={!values.onSale}
                   className={`px-4 py-2.5 rounded-xl border bg-slate-50/50 transition-all focus:outline-none focus:ring-2 focus:bg-white ${
-                    !values.onSale ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                    !values.onSale
+                      ? "opacity-50 cursor-not-allowed bg-slate-100"
+                      : ""
                   } ${
                     errors.salePrice && touched.salePrice
                       ? "border-red-400 focus:ring-red-200"
@@ -615,7 +663,8 @@ const UpdateProductForm = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" /> Updating Product...
+                    <Loader2 className="w-5 h-5 animate-spin" /> Updating
+                    Product...
                   </>
                 ) : (
                   "Update Product Details"
