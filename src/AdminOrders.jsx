@@ -39,17 +39,36 @@ export default function AdminOrders() {
   const selectedOrder = orders.find((order) => order._id === selectedOrderId);
 
   // 2. تغيير حالة الطلب
+  // const updateStatusMutation = useMutation({
+  //   mutationFn: async ({ orderId, status }) => {
+  //     const { data } = await axios.patch(`${cleanBaseUrl}orders/${orderId}`, {
+  //       status,
+  //     });
+  //     return data;
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ["adminOrders"] });
+  //     alert("Order status updated successfully!");
+  //   },
+  //   onError: (err) => {
+  //     alert(err.response?.data?.message || "Failed to update status");
+  //   },
+  // });
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }) => {
-      const { data } = await axios.patch(`${cleanBaseUrl}orders/${orderId}`, {
-        status,
-      });
+      const { data } = await axios.patch(
+        `${cleanBaseUrl}orders/${orderId}/status`,
+        { status },
+      );
+
       return data;
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminOrders"] });
-      alert("Order status updated successfully!");
     },
+
     onError: (err) => {
       alert(err.response?.data?.message || "Failed to update status");
     },
@@ -81,15 +100,18 @@ export default function AdminOrders() {
   };
 
   // دالة جديدة لاختيار الطلب والسكرول في الحالتين
-const handleSelectOrder = (orderId) => {
-  if (selectedOrderId === orderId) {
-    // إذا كان الاوردر مفتوحاً بالفعل، قم بالسكرول مباشرة
-    detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  } else {
-    // إذا كان اوردر جديد، غير الـ State وسوف تتكفل الـ useEffect بالسكرول
-    setSelectedOrderId(orderId);
-  }
-};
+  const handleSelectOrder = (orderId) => {
+    if (selectedOrderId === orderId) {
+      // إذا كان الاوردر مفتوحاً بالفعل، قم بالسكرول مباشرة
+      detailsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    } else {
+      // إذا كان اوردر جديد، غير الـ State وسوف تتكفل الـ useEffect بالسكرول
+      setSelectedOrderId(orderId);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -128,13 +150,15 @@ const handleSelectOrder = (orderId) => {
                 <p className="text-lg font-medium">No orders found yet.</p>
               </div>
             ) : (
+              // main table
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                {/* <table className="w-full text-left border-collapse text-sm">
                   <thead className="bg-gray-100 text-gray-700 font-semibold border-b">
                     <tr>
                       <th className="p-4">Customer</th>
                       <th className="p-4">Date</th>
                       <th className="p-4">Total</th>
+                      <th className="p-4">Status</th>
                       <th className="p-4 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -169,12 +193,232 @@ const handleSelectOrder = (orderId) => {
                         <td className="p-4 font-bold text-burgundy">
                           {order.totalPrice} EGP
                         </td>
+
+                        <td
+                          className="p-4"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <select
+                            value={order.status || "none"}
+                            onChange={(e) =>
+                              updateStatusMutation.mutate({
+                                orderId: order._id,
+                                status: e.target.value,
+                              })
+                            }
+                            disabled={updateStatusMutation.isPending}
+                            className="border border-gray-300 rounded-lg px-2 py-2 text-xs
+               bg-white text-gray-700 cursor-pointer
+               focus:outline-none focus:ring-2 focus:ring-pink-300
+               disabled:opacity-50"
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </td>
+
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleSelectOrder(order._id)
+                                handleSelectOrder(order._id);
+                              }}
+                              className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 hover:text-burgundy transition-all cursor-pointer"
+                              title="View Details"
+                            >
+                              <Eye size={18} />
+                            </button>
+
+                            <button
+                              onClick={(e) => handleDelete(e, order._id)}
+                              disabled={deleteOrderMutation.isPending}
+                              className="p-1.5 hover:bg-red-50 rounded-md text-gray-400 hover:text-red-600 transition-all cursor-pointer disabled:opacity-50"
+                              title="Delete Order"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table> */}
+
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead>
+                    <tr>
+                      {["Customer", "Date", "Total", "Status", "Actions"].map(
+                        (header) => (
+                          <th
+                            key={header}
+                            className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell"
+                          >
+                            {header}
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-700">
+                    {orders.map((order) => (
+                      <tr
+                        key={order._id}
+                        onClick={() => handleSelectOrder(order._id)}
+                        className={`flex flex-col md:table-row mb-4 md:mb-0 border-b md:border-b-0 border-gray-700 md:border-none p-2 md:p-0 cursor-pointer transition-colors ${
+                          selectedOrderId === order._id
+                            ? "bg-burgundy/5"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        {/* Mobile View */}
+                        <td className="md:hidden px-3 py-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col space-y-1.5">
+                              <div className="text-sm font-semibold text-gray-900">
+                                {order.customerName}
+                              </div>
+
+                              <div className="text-xs text-gray-500 ">
+                                {order.phone}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectOrder(order._id);
+                                }}
+                                className="text-gray-500 hover:text-burgundy p-1.5 rounded-md cursor-pointer"
+                                title="View Details"
+                              >
+                                <Eye size={16} />
+                              </button>
+
+                              <button
+                                onClick={(e) => handleDelete(e, order._id)}
+                                disabled={deleteOrderMutation.isPending}
+                                className="text-red-500 hover:text-red-600 p-1.5 rounded-md cursor-pointer disabled:opacity-50"
+                                title="Delete Order"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 text-xs text-gray-600 space-y-1">
+                            <div className="font-bold text-burgundy">
+                              Total: {order.totalPrice} EGP
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              Status:
+                              <select
+                                value={order.status || "Pending"}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) =>
+                                  updateStatusMutation.mutate({
+                                    orderId: order._id,
+                                    status: e.target.value,
+                                  })
+                                }
+                                disabled={updateStatusMutation.isPending}
+                                className={`appearance-none px-2 py-1 text-xs font-semibold rounded-2xl border-0 cursor-pointer focus:outline-none ${
+                                  order.status === "Delivered"
+                                    ? "bg-green-200 text-gray-800"
+                                    : order.status === "Pending"
+                                      ? "bg-yellow-200 text-yellow-800"
+                                      : order.status === "Shipped"
+                                        ? "bg-blue-200 text-blue-800"
+                                        : "bg-red-200 text-red-800"
+                                }`}
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              Date:{" "}
+                              {new Date(order.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Desktop View */}
+
+                        <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <div>{order.customerName}</div>
+                          <div className="text-xs text-gray-500">
+                            {order.phone}
+                          </div>
+                        </td>
+
+                        <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(order.createdAt).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )}
+                        </td>
+
+                        <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm font-bold text-burgundy">
+                          {order.totalPrice} EGP
+                        </td>
+
+                        <td
+                          className="hidden md:table-cell px-6 py-4 whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <select
+                            value={order.status || "Pending"}
+                            onChange={(e) =>
+                              updateStatusMutation.mutate({
+                                orderId: order._id,
+                                status: e.target.value,
+                              })
+                            }
+                            disabled={updateStatusMutation.isPending}
+                            className={`appearance-none px-2 py-2 text-xs font-semibold rounded-lg border-0 cursor-pointer focus:outline-none ${
+                              order.status === "Delivered"
+                                ? "bg-green-200 text-gray-800"
+                                : order.status === "Pending"
+                                  ? "bg-yellow-200 text-yellow-800"
+                                  : order.status === "Shipped"
+                                    ? "bg-blue-200 text-blue-800"
+                                    : "bg-red-200 text-red-800"
+                            }`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </td>
+
+                        <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectOrder(order._id);
                               }}
                               className="p-1.5 hover:bg-gray-200 rounded-md text-gray-500 hover:text-burgundy transition-all cursor-pointer"
                               title="View Details"
@@ -301,7 +545,6 @@ const handleSelectOrder = (orderId) => {
           )}
         </div>
       </div>
-
     </>
   );
 }
