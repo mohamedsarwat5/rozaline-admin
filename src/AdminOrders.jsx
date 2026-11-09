@@ -140,7 +140,7 @@ export default function AdminOrders() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* جدول الطلبات الرئيسي */}
           <div
-            className={`bg-white rounded-xl shadow-md border overflow-hidden transition-all duration-300 ${
+            className={`bg-white rounded-xl shadow-md border border-pink-300 overflow-hidden transition-all duration-300 ${
               selectedOrder ? "xl:col-span-7" : "xl:col-span-12"
             }`}
           >
@@ -247,7 +247,7 @@ export default function AdminOrders() {
                   </tbody>
                 </table> */}
 
-                <table className="min-w-full divide-y divide-gray-700">
+                <table className="min-w-full ">
                   <thead>
                     <tr>
                       {["Customer", "Date", "Total", "Status", "Actions"].map(
@@ -263,16 +263,12 @@ export default function AdminOrders() {
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-gray-700">
+                  <tbody className="divide-y divide-pink-300 bg-pink-200/25">
                     {orders.map((order) => (
                       <tr
                         key={order._id}
                         onClick={() => handleSelectOrder(order._id)}
-                        className={`flex flex-col md:table-row mb-4 md:mb-0 border-b md:border-b-0 border-gray-700 md:border-none p-2 md:p-0 cursor-pointer transition-colors ${
-                          selectedOrderId === order._id
-                            ? "bg-burgundy/5"
-                            : "hover:bg-gray-50"
-                        }`}
+                        className={`flex flex-col md:table-row mb-4 md:mb-0  p-2 md:p-0 cursor-pointer transition-colors `}
                       >
                         {/* Mobile View */}
                         <td className="md:hidden px-3 py-2">
