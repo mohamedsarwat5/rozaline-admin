@@ -292,7 +292,7 @@ export default function AdminOrders() {
                                 className="text-gray-500 hover:text-burgundy p-1.5 rounded-md cursor-pointer"
                                 title="View Details"
                               >
-                                <Eye size={16} />
+                                <Eye size={19} />
                               </button>
 
                               <button
@@ -301,7 +301,7 @@ export default function AdminOrders() {
                                 className="text-red-500 hover:text-red-600 p-1.5 rounded-md cursor-pointer disabled:opacity-50"
                                 title="Delete Order"
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={19} />
                               </button>
                             </div>
                           </div>
