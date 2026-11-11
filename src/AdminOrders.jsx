@@ -328,13 +328,13 @@ export default function AdminOrders() {
                                     ? "bg-green-200 text-gray-800"
                                     : order.status === "Pending"
                                       ? "bg-yellow-200 text-yellow-800"
-                                      : order.status === "Shipped"
+                                      : order.status === "Confirmed"
                                         ? "bg-blue-200 text-blue-800"
                                         : "bg-red-200 text-red-800"
                                 }`}
                               >
                                 <option value="Pending">Pending</option>
-                                <option value="Shipped">Shipped</option>
+                                <option value="Confirmed">Confirmed</option>
                                 <option value="Delivered">Delivered</option>
                                 <option value="Cancelled">Cancelled</option>
                               </select>
@@ -397,13 +397,13 @@ export default function AdminOrders() {
                                 ? "bg-green-200 text-gray-800"
                                 : order.status === "Pending"
                                   ? "bg-yellow-200 text-yellow-800"
-                                  : order.status === "Shipped"
+                                  : order.status === "Confirmed"
                                     ? "bg-blue-200 text-blue-800"
                                     : "bg-red-200 text-red-800"
                             }`}
                           >
                             <option value="Pending">Pending</option>
-                            <option value="Shipped">Shipped</option>
+                            <option value="Confirmed">Confirmed</option>
                             <option value="Delivered">Delivered</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
